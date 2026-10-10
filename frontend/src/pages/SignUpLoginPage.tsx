@@ -14,16 +14,26 @@ interface RegisterFormData {
   password2: string;
 }
 
-const SignUpLoginPage = () => {
-  const [isSignUp, setIsSignUp] = useState<boolean>(false);
+interface SignUpLoginPageProps {
+  initialIsSignUp?: boolean;
+  onBackToLanding?: () => void;
+  onLoginSuccess?: (userData: { username: string }) => void;
+}
+
+const SignUpLoginPage = ({
+  initialIsSignUp = false,
+  onBackToLanding,
+  onLoginSuccess,
+}: SignUpLoginPageProps) => {
+  const [isSignUp, setIsSignUp] = useState<boolean>(initialIsSignUp);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [registrationSuccess, setRegistrationSuccess] = useState<boolean>(false);
 
   const [loginData, setLoginData] = useState<LoginFormData>({
-    username: "",
-    password: "",
+    username: "student",
+    password: "study123",
   });
 
   const [registerData, setRegisterData] = useState<RegisterFormData>({
@@ -59,7 +69,12 @@ const SignUpLoginPage = () => {
     setIsLoading(true);
     // TODO: call your login API here
     console.log("Login:", loginData);
-    setTimeout(() => setIsLoading(false), 800); // fake delay, remove later
+    setTimeout(() => {
+      setIsLoading(false);
+      if (onLoginSuccess) {
+        onLoginSuccess({ username: loginData.username });
+      }
+    }, 800); // fake delay, remove later
   };
 
   const handleRegisterSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -97,19 +112,34 @@ const SignUpLoginPage = () => {
 
   return (
     <div className={styles.page}>
+      {onBackToLanding && (
+        <button
+          type="button"
+          onClick={onBackToLanding}
+          className={styles.backButton}
+        >
+          ← Back to Home
+        </button>
+      )}
+
       <div
         className={`${styles.container} ${isSignUp ? styles.rightPanelActive : ""}`}
       >
         {/* Sign Up */}
         <div className={`${styles.formContainer} ${styles.signUpContainer}`}>
           <form onSubmit={handleRegisterSubmit}>
+            <div className={styles.formBrand}>
+              <div className={styles.formLogo}>SB</div>
+              <span className={styles.formBrandName}>StudyBuddy</span>
+            </div>
+
             <h1>Create Account</h1>
 
             {error && isSignUp && (
               <div className={styles.errorMessage}>{error}</div>
             )}
 
-            <span>or use your email for registration</span>
+            <span>Use your student email for registration</span>
 
             <input
               type="text"
@@ -124,7 +154,7 @@ const SignUpLoginPage = () => {
             <input
               type="email"
               name="email"
-              placeholder="Email"
+              placeholder="Student Email"
               value={registerData.email}
               onChange={handleRegisterChange}
               autoComplete="email"
@@ -173,19 +203,31 @@ const SignUpLoginPage = () => {
                 Continue with Google
               </button>
             </div>
+
+            <div className={styles.mobileSwitch}>
+              Already have an account?{" "}
+              <button type="button" onClick={() => switchPanel(false)}>
+                Sign In
+              </button>
+            </div>
           </form>
         </div>
 
         {/* Sign In */}
         <div className={`${styles.formContainer} ${styles.signInContainer}`}>
           <form onSubmit={handleLoginSubmit}>
-            <h1>Sign in</h1>
+            <div className={styles.formBrand}>
+              <div className={styles.formLogo}>SB</div>
+              <span className={styles.formBrandName}>StudyBuddy</span>
+            </div>
+
+            <h1>Welcome Back</h1>
 
             {error && !isSignUp && (
               <div className={styles.errorMessage}>{error}</div>
             )}
 
-            <span>or use your account</span>
+            <span>Sign in to access your study sessions</span>
 
             <input
               type="text"
@@ -215,12 +257,12 @@ const SignUpLoginPage = () => {
                 onClick={() => setShowPassword((s) => !s)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? "🙈" : "👁️"}
+                {showPassword ? "Hide" : "Show"}
               </button>
             </div>
 
             <a href="#" className={styles.forgotPassword}>
-              Forgot your password?
+              Forgot password?
             </a>
 
             <button type="submit" className={styles.primaryBtn} disabled={isLoading}>
@@ -233,15 +275,22 @@ const SignUpLoginPage = () => {
                 Continue with Google
               </button>
             </div>
+
+            <div className={styles.mobileSwitch}>
+              Don't have an account?{" "}
+              <button type="button" onClick={() => switchPanel(true)}>
+                Sign Up
+              </button>
+            </div>
           </form>
         </div>
 
-        {/* Overlay */}
+        {/* Sliding Overlay */}
         <div className={styles.overlayContainer}>
           <div className={styles.overlay}>
             <div className={`${styles.overlayPanel} ${styles.overlayLeft}`}>
               <h1>Welcome Back!</h1>
-              <p>To keep connected with us please login with your personal info</p>
+              <p>Keep your study streak alive and stay connected with your study partners</p>
               <button
                 type="button"
                 className={`${styles.primaryBtn} ${styles.ghost}`}
@@ -251,8 +300,8 @@ const SignUpLoginPage = () => {
               </button>
             </div>
             <div className={`${styles.overlayPanel} ${styles.overlayRight}`}>
-              <h1>Hello, Friend!</h1>
-              <p>Enter your personal details and start your journey with us</p>
+              <h1>Hello, Learner!</h1>
+              <p>Join thousands of students and find your ideal AI-matched study partner today</p>
               <button
                 type="button"
                 className={`${styles.primaryBtn} ${styles.ghost}`}
