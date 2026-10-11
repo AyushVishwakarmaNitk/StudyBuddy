@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
+import BrandLogo from "../components/common/BrandLogo";
 import styles from "./SignUpLoginPage.module.css";
 
 interface LoginFormData {
@@ -128,10 +129,11 @@ const SignUpLoginPage = ({
         {/* Sign Up */}
         <div className={`${styles.formContainer} ${styles.signUpContainer}`}>
           <form onSubmit={handleRegisterSubmit}>
-            <div className={styles.formBrand}>
-              <div className={styles.formLogo}>SB</div>
-              <span className={styles.formBrandName}>StudyBuddy</span>
-            </div>
+            <BrandLogo
+              size="sm"
+              showTagline={false}
+              style={{ marginBottom: "12px" }}
+            />
 
             <h1>Create Account</h1>
 
@@ -216,10 +218,11 @@ const SignUpLoginPage = ({
         {/* Sign In */}
         <div className={`${styles.formContainer} ${styles.signInContainer}`}>
           <form onSubmit={handleLoginSubmit}>
-            <div className={styles.formBrand}>
-              <div className={styles.formLogo}>SB</div>
-              <span className={styles.formBrandName}>StudyBuddy</span>
-            </div>
+            <BrandLogo
+              size="sm"
+              showTagline={false}
+              style={{ marginBottom: "12px" }}
+            />
 
             <h1>Welcome Back</h1>
 

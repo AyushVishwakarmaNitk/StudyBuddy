@@ -1,0 +1,84 @@
+.confirmContent {
+  text-align: center;
+  padding: 8px 4px 4px;
+}
+
+.confirmIcon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.confirmContent h3 {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0 0 8px;
+  color: #1e242b;
+}
+
+.confirmMessage {
+  font-size: 13.5px;
+  color: #5f6c7b;
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.cancelBtn {
+  background: transparent;
+  border: 1.5px solid #ece7e3;
+  padding: 10px 22px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5f6c7b;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.cancelBtn:hover {
+  background: #faf7f5;
+  color: #1e242b;
+}
+
+.dangerBtn {
+  background: #cf1322;
+  color: #ffffff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.dangerBtn:hover {
+  background: #a8071a;
+  transform: translateY(-2px);
+}
+
+.primaryBtn {
+  background: linear-gradient(135deg, #ff4b2b 0%, #ff6e40 100%);
+  color: #ffffff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.primaryBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(255, 75, 43, 0.35);
+}
+

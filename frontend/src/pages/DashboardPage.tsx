@@ -1,5 +1,20 @@
-import React, { useState, useRef } from "react";
-import type { StudySpace, UserProfile, StudyPartner } from "../types/dashboard";
+import React, { useState } from "react";
+import type {
+  StudySpace,
+  UserProfile,
+  StudyPartner,
+  EducationRecord,
+} from "../types/dashboard";
+import BrandLogo from "../components/common/BrandLogo";
+import Avatar from "../components/common/Avatar";
+import ConfirmDialog from "../components/common/ConfirmDialog";
+import StatCard from "../components/dashboard/StatCard";
+import StudySpaceCard from "../components/dashboard/StudySpaceCard";
+import AddGoalModal from "../components/dashboard/AddGoalModal";
+import EducationFormModal from "../components/dashboard/EducationFormModal";
+import FindPartnerModal from "../components/dashboard/FindPartnerModal";
+import StudySpaceDetailModal from "../components/dashboard/StudySpaceDetailModal";
+import ProfileModal from "../components/dashboard/ProfileModal";
 import styles from "./DashboardPage.module.css";
 
 interface DashboardPageProps {
@@ -15,6 +30,42 @@ const initialUserProfile: UserProfile = {
   bio: "3rd Year CSE student passionate about Web Dev, Algorithms & Machine Learning.",
   branch: "Computer Science & Engineering",
   year: 3,
+  rating: {
+    average: 4.8,
+    count: 14,
+  },
+  education: [
+    {
+      id: "edu-1",
+      level: "class_10",
+      institutionName: "Delhi Public School",
+      board: "CBSE",
+      passingYear: 2020,
+      percentage: 94.2,
+    },
+    {
+      id: "edu-2",
+      level: "class_12",
+      institutionName: "Delhi Public School",
+      board: "CBSE",
+      passingYear: 2022,
+      stream: "Science (PCM)",
+      percentage: 92.6,
+    },
+    {
+      id: "edu-3",
+      level: "ug",
+      institutionName: "National Institute of Technology Karnataka (NITK)",
+      degree: "B.Tech",
+      specialization: "Computer Science & Engineering",
+      startYear: 2022,
+      completionYear: 2026,
+      isCurrentlyStudying: true,
+      gradingType: "cgpa",
+      cgpa: 8.85,
+      cgpaScale: 10,
+    },
+  ],
   studyPreferences: {
     subjects: ["Python", "DBMS", "React", "Data Structures"],
     availability: "Evenings 7:00 PM - 10:00 PM",
@@ -116,88 +167,91 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
 
   // Modals state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+  const [activeProfileTab, setActiveProfileTab] = useState<"personal" | "education">("personal");
+
   const [isAddGoalModalOpen, setIsAddGoalModalOpen] = useState<boolean>(false);
   const [activeSpaceForPartner, setActiveSpaceForPartner] = useState<StudySpace | null>(null);
   const [selectedSpaceDetail, setSelectedSpaceDetail] = useState<StudySpace | null>(null);
 
-  // Add Goal Form State
-  const [newGoalData, setNewGoalData] = useState({
-    title: "",
-    subject: "",
-    goal: "",
-    schedule: "Evenings 7:00 PM - 9:00 PM",
-    duration: "60 mins",
-    learningStyle: "Pomodoro Focus",
-  });
-
-  // Edit Profile Form State
-  const [editProfileData, setEditProfileData] = useState<UserProfile>(initialUserProfile);
-  const [profileImageError, setProfileImageError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Education Sub-Modal & Delete Confirmation
+  const [isEduModalOpen, setIsEduModalOpen] = useState<boolean>(false);
+  const [editingEduRecord, setEditingEduRecord] = useState<EducationRecord | null>(null);
+  const [recordToDelete, setRecordToDelete] = useState<EducationRecord | null>(null);
 
   // Stats calculation
   const totalGoals = spaces.length;
   const totalPartners = spaces.filter((s) => s.partner !== undefined).length;
   const totalUpcomingSessions = spaces.reduce((acc, s) => acc + s.upcomingSessions, 0);
 
-  // Handle Avatar Upload with Validation
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    setProfileImageError(null);
-
-    if (!file) return;
-
-    // Validation: Image type
-    if (!file.type.startsWith("image/")) {
-      setProfileImageError("Please select a valid image file (PNG, JPG, or WEBP).");
-      return;
-    }
-
-    // Validation: Size < 2MB
-    if (file.size > 2 * 1024 * 1024) {
-      setProfileImageError("Image size must be smaller than 2MB.");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setEditProfileData((prev) => ({ ...prev, avatarUrl: reader.result as string }));
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleRemoveAvatar = () => {
-    setEditProfileData((prev) => ({ ...prev, avatarUrl: null }));
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const handleOpenEditProfile = () => {
-    setEditProfileData(profile);
-    setProfileImageError(null);
+  // Navigation handlers
+  const handleOpenProfile = (tab: "personal" | "education" = "personal") => {
+    setActiveProfileTab(tab);
     setIsDropdownOpen(false);
     setIsProfileModalOpen(true);
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
-    e.preventDefault();
-    setProfile(editProfileData);
-    setIsProfileModalOpen(false);
+  // Profile update handler
+  const handleSaveProfile = (updatedProfile: UserProfile) => {
+    setProfile(updatedProfile);
   };
 
-  const handleCreateGoal = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newGoalData.title || !newGoalData.goal) return;
+  // Education handlers
+  const handleOpenAddEdu = () => {
+    setEditingEduRecord(null);
+    setIsEduModalOpen(true);
+  };
 
+  const handleOpenEditEdu = (record: EducationRecord) => {
+    setEditingEduRecord(record);
+    setIsEduModalOpen(true);
+  };
+
+  const handleSaveEduRecord = (newOrUpdated: EducationRecord) => {
+    const currentList = profile.education || [];
+    let updatedList: EducationRecord[];
+
+    if (editingEduRecord) {
+      updatedList = currentList.map((rec) =>
+        rec.id === editingEduRecord.id ? newOrUpdated : rec
+      );
+    } else {
+      updatedList = [...currentList, newOrUpdated];
+    }
+
+    setProfile({ ...profile, education: updatedList });
+    setIsEduModalOpen(false);
+    setEditingEduRecord(null);
+  };
+
+  const handlePromptDeleteEdu = (record: EducationRecord) => {
+    setRecordToDelete(record);
+  };
+
+  const handleConfirmDeleteEdu = () => {
+    if (!recordToDelete) return;
+    const currentList = profile.education || [];
+    const updatedList = currentList.filter((rec) => rec.id !== recordToDelete.id);
+    setProfile({ ...profile, education: updatedList });
+    setRecordToDelete(null);
+  };
+
+  // Study Space Handlers
+  const handleCreateGoal = (goalData: {
+    title: string;
+    subject: string;
+    goal: string;
+    schedule: string;
+    duration: string;
+    learningStyle: string;
+  }) => {
     const newSpace: StudySpace = {
       id: `space-${Date.now()}`,
-      title: newGoalData.title,
-      subject: newGoalData.subject || newGoalData.title,
-      goal: newGoalData.goal,
-      schedule: newGoalData.schedule,
-      duration: newGoalData.duration,
-      learningStyle: newGoalData.learningStyle,
+      title: goalData.title,
+      subject: goalData.subject || goalData.title,
+      goal: goalData.goal,
+      schedule: goalData.schedule,
+      duration: goalData.duration,
+      learningStyle: goalData.learningStyle,
       partner: undefined,
       sessionsCompleted: 0,
       upcomingSessions: 0,
@@ -207,14 +261,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
 
     setSpaces((prev) => [newSpace, ...prev]);
     setIsAddGoalModalOpen(false);
-    setNewGoalData({
-      title: "",
-      subject: "",
-      goal: "",
-      schedule: "Evenings 7:00 PM - 9:00 PM",
-      duration: "60 mins",
-      learningStyle: "Pomodoro Focus",
-    });
   };
 
   const handleAssignPartner = (partner: StudyPartner) => {
@@ -266,13 +312,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
       {/* 1. TOP NAVBAR */}
       <header className={styles.navbar}>
         <div className={styles.navContainer}>
-          <div className={styles.brandGroup}>
-            <div className={styles.logoIcon}>SB</div>
-            <div className={styles.brandText}>
-              <span className={styles.brandTitle}>StudyBuddy</span>
-              <span className={styles.brandTagline}>Study smarter together</span>
-            </div>
-          </div>
+          <BrandLogo size="md" />
 
           <div className={styles.navRight}>
             <button
@@ -280,14 +320,14 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
               className={styles.profileTrigger}
               onClick={() => setIsDropdownOpen((prev) => !prev)}
             >
-              <div className={styles.avatarSmall}>
-                {profile.avatarUrl ? (
-                  <img src={profile.avatarUrl} alt={profile.name} className={styles.avatarImg} />
-                ) : (
-                  profile.name.charAt(0)
-                )}
-              </div>
-              <span className={styles.profileTriggerName}>{profile.name.split(" ")[0]}</span>
+              <Avatar
+                src={profile.avatarUrl}
+                name={profile.name}
+                size="sm"
+              />
+              <span className={styles.profileTriggerName}>
+                {profile.name.split(" ")[0]}
+              </span>
               <span className={styles.chevronIcon}>▼</span>
             </button>
 
@@ -305,9 +345,17 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
                 <button
                   type="button"
                   className={styles.dropdownItem}
-                  onClick={handleOpenEditProfile}
+                  onClick={() => handleOpenProfile("personal")}
                 >
                   👤 Edit Profile & DP
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.dropdownItem}
+                  onClick={() => handleOpenProfile("education")}
+                >
+                  🎓 Education Details
                 </button>
 
                 <button
@@ -356,29 +404,21 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
 
         {/* Summary Stats Row */}
         <section className={styles.statsGrid}>
-          <div className={styles.statCard}>
-            <div className={styles.statNumber}>{totalGoals}</div>
-            <div className={styles.statInfo}>
-              <h3>Study goals</h3>
-              <p>Active learning objectives</p>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={styles.statNumber}>{totalPartners}</div>
-            <div className={styles.statInfo}>
-              <h3>Study partners</h3>
-              <p>Collaborating students</p>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={styles.statNumber}>{totalUpcomingSessions}</div>
-            <div className={styles.statInfo}>
-              <h3>Upcoming sessions</h3>
-              <p>Scheduled this week</p>
-            </div>
-          </div>
+          <StatCard
+            number={totalGoals}
+            title="Study goals"
+            subtitle="Active learning objectives"
+          />
+          <StatCard
+            number={totalPartners}
+            title="Study partners"
+            subtitle="Collaborating students"
+          />
+          <StatCard
+            number={totalUpcomingSessions}
+            title="Upcoming sessions"
+            subtitle="Scheduled this week"
+          />
         </section>
 
         {/* Study Spaces Section */}
@@ -395,73 +435,14 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
           </div>
 
           <div className={styles.spacesGrid}>
-            {spaces.map((space) => {
-              const hasPartner = space.partner !== undefined;
-              return (
-                <div key={space.id} className={styles.spaceCard}>
-                  <div className={styles.spaceCardTop}>
-                    <span className={styles.spaceSubjectBadge}>{space.subject}</span>
-                    <h3 className={styles.spaceTitle}>{space.title}</h3>
-
-                    <div className={styles.spacePartnerRow}>
-                      {hasPartner ? (
-                        <>
-                          <span>Partner:</span>
-                          <span className={styles.partnerName}>{space.partner?.name}</span>
-                          <span>•</span>
-                          <span>
-                            {space.sessionsCompleted > 0
-                              ? `${space.sessionsCompleted} sessions completed`
-                              : `${space.upcomingSessions} upcoming session`}
-                          </span>
-                        </>
-                      ) : (
-                        <span className={styles.partnerNeededBadge}>Partner needed</span>
-                      )}
-                    </div>
-
-                    <div className={styles.spaceGoalBox}>
-                      <strong>Goal:</strong> {space.goal}
-                    </div>
-
-                    {hasPartner && (
-                      <div className={styles.progressSection}>
-                        <div className={styles.progressLabelRow}>
-                          <span>Illustrative progress:</span>
-                          <span>{space.progressPercent}%</span>
-                        </div>
-                        <div className={styles.progressTrack}>
-                          <div
-                            className={styles.progressFill}
-                            style={{ width: `${space.progressPercent}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    {hasPartner ? (
-                      <button
-                        type="button"
-                        className={`${styles.spaceActionBtn} ${styles.openSpaceBtn}`}
-                        onClick={() => setSelectedSpaceDetail(space)}
-                      >
-                        Open study space →
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className={`${styles.spaceActionBtn} ${styles.findPartnerBtn}`}
-                        onClick={() => setActiveSpaceForPartner(space)}
-                      >
-                        Find a study partner 🚀
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {spaces.map((space) => (
+              <StudySpaceCard
+                key={space.id}
+                space={space}
+                onOpen={(s) => setSelectedSpaceDetail(s)}
+                onFindPartner={(s) => setActiveSpaceForPartner(s)}
+              />
+            ))}
           </div>
 
           <p className={styles.disclaimerNote}>
@@ -470,419 +451,65 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
         </section>
       </main>
 
-      {/* 3. MODAL: ADD A STUDY GOAL */}
-      {isAddGoalModalOpen && (
-        <div className={styles.modalOverlay} onClick={() => setIsAddGoalModalOpen(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className={styles.modalCloseBtn}
-              onClick={() => setIsAddGoalModalOpen(false)}
-            >
-              ✕
-            </button>
+      {/* 3. MODALS (Extracted into clean DRY components) */}
+      <AddGoalModal
+        isOpen={isAddGoalModalOpen}
+        onClose={() => setIsAddGoalModalOpen(false)}
+        onSubmit={handleCreateGoal}
+      />
 
-            <div className={styles.modalHeader}>
-              <h2>+ Add a Study Goal</h2>
-              <p>Create a dedicated study space to track progress and find matching partners.</p>
-            </div>
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        initialTab={activeProfileTab}
+        profile={profile}
+        onClose={() => setIsProfileModalOpen(false)}
+        onSaveProfile={handleSaveProfile}
+        onOpenAddEdu={handleOpenAddEdu}
+        onEditEdu={handleOpenEditEdu}
+        onDeleteEdu={handlePromptDeleteEdu}
+      />
 
-            <form onSubmit={handleCreateGoal}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Goal Title / Focus</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="e.g., Learn Python, DBMS Exam Prep, GATE Mathematics"
-                  value={newGoalData.title}
-                  onChange={(e) => setNewGoalData({ ...newGoalData, title: e.target.value })}
-                  required
-                />
-              </div>
+      <EducationFormModal
+        isOpen={isEduModalOpen}
+        editingRecord={editingEduRecord}
+        onClose={() => {
+          setIsEduModalOpen(false);
+          setEditingEduRecord(null);
+        }}
+        onSave={handleSaveEduRecord}
+      />
 
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Subject / Course</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="e.g., Computer Science, Database Systems, Web Development"
-                  value={newGoalData.subject}
-                  onChange={(e) => setNewGoalData({ ...newGoalData, subject: e.target.value })}
-                  required
-                />
-              </div>
+      <FindPartnerModal
+        isOpen={Boolean(activeSpaceForPartner)}
+        space={activeSpaceForPartner}
+        partners={mockAvailablePartners}
+        onClose={() => setActiveSpaceForPartner(null)}
+        onConnect={handleAssignPartner}
+      />
 
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Specific Target / Objective</label>
-                <textarea
-                  className={styles.formTextarea}
-                  placeholder="e.g., Complete Python fundamentals and solve 30 LeetCode questions together."
-                  value={newGoalData.goal}
-                  onChange={(e) => setNewGoalData({ ...newGoalData, goal: e.target.value })}
-                  required
-                />
-              </div>
+      <StudySpaceDetailModal
+        isOpen={Boolean(selectedSpaceDetail)}
+        space={selectedSpaceDetail}
+        onClose={() => setSelectedSpaceDetail(null)}
+        onCompleteSession={handleCompleteSession}
+      />
 
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Preferred Schedule</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  value={newGoalData.schedule}
-                  onChange={(e) => setNewGoalData({ ...newGoalData, schedule: e.target.value })}
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Session Duration & Style</label>
-                <select
-                  className={styles.formSelect}
-                  value={newGoalData.learningStyle}
-                  onChange={(e) => setNewGoalData({ ...newGoalData, learningStyle: e.target.value })}
-                >
-                  <option value="Pomodoro Focus">Pomodoro (25m Focus / 5m Break)</option>
-                  <option value="Silent Accountability">Silent Accountability</option>
-                  <option value="Active Problem Solving">Active Problem Solving & Discussion</option>
-                  <option value="Collaborative Pair Coding">Collaborative Pair Coding</option>
-                </select>
-              </div>
-
-              <div className={styles.modalActions}>
-                <button
-                  type="button"
-                  className={styles.cancelModalBtn}
-                  onClick={() => setIsAddGoalModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className={styles.saveModalBtn}>
-                  Create Study Space
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 4. MODAL: EDIT PROFILE & DP */}
-      {isProfileModalOpen && (
-        <div className={styles.modalOverlay} onClick={() => setIsProfileModalOpen(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className={styles.modalCloseBtn}
-              onClick={() => setIsProfileModalOpen(false)}
-            >
-              ✕
-            </button>
-
-            <div className={styles.modalHeader}>
-              <h2>Edit Profile</h2>
-              <p>Update your personal details, profile picture, and study preferences.</p>
-            </div>
-
-            <form onSubmit={handleSaveProfile}>
-              {/* Profile Picture Upload & Preview */}
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Profile Picture (DP)</label>
-                <div className={styles.avatarUploadRow}>
-                  <div className={styles.avatarLarge}>
-                    {editProfileData.avatarUrl ? (
-                      <img
-                        src={editProfileData.avatarUrl}
-                        alt="Preview"
-                        className={styles.avatarImg}
-                      />
-                    ) : (
-                      editProfileData.name.charAt(0)
-                    )}
-                  </div>
-                  <div className={styles.avatarUploadActions}>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleAvatarFileChange}
-                      accept="image/png, image/jpeg, image/webp"
-                      style={{ display: "none" }}
-                      id="avatarFileInput"
-                    />
-                    <label htmlFor="avatarFileInput" className={styles.uploadFileBtn}>
-                      Upload new image
-                    </label>
-                    {editProfileData.avatarUrl && (
-                      <button
-                        type="button"
-                        className={styles.removeAvatarBtn}
-                        onClick={handleRemoveAvatar}
-                      >
-                        Remove photo
-                      </button>
-                    )}
-                    <span style={{ fontSize: "11px", color: "#8c98a4" }}>
-                      PNG, JPG, or WEBP (Max 2MB)
-                    </span>
-                  </div>
-                </div>
-                {profileImageError && (
-                  <div style={{ color: "#cf1322", fontSize: "12px", marginTop: "4px" }}>
-                    {profileImageError}
-                  </div>
-                )}
-              </div>
-
-              {/* Personal Information */}
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Full Name</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  value={editProfileData.name}
-                  onChange={(e) => setEditProfileData({ ...editProfileData, name: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Biography</label>
-                <textarea
-                  className={styles.formTextarea}
-                  value={editProfileData.bio}
-                  onChange={(e) => setEditProfileData({ ...editProfileData, bio: e.target.value })}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Branch / Department</label>
-                  <input
-                    type="text"
-                    className={styles.formInput}
-                    value={editProfileData.branch}
-                    onChange={(e) =>
-                      setEditProfileData({ ...editProfileData, branch: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Academic Year</label>
-                  <select
-                    className={styles.formSelect}
-                    value={editProfileData.year}
-                    onChange={(e) =>
-                      setEditProfileData({
-                        ...editProfileData,
-                        year: parseInt(e.target.value, 10),
-                      })
-                    }
-                  >
-                    <option value={1}>1st Year</option>
-                    <option value={2}>2nd Year</option>
-                    <option value={3}>3rd Year</option>
-                    <option value={4}>4th Year</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Availability Schedule</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  value={editProfileData.studyPreferences.availability}
-                  onChange={(e) =>
-                    setEditProfileData({
-                      ...editProfileData,
-                      studyPreferences: {
-                        ...editProfileData.studyPreferences,
-                        availability: e.target.value,
-                      },
-                    })
-                  }
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Preferred Collaboration Style</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  value={editProfileData.studyPreferences.collaborationStyle}
-                  onChange={(e) =>
-                    setEditProfileData({
-                      ...editProfileData,
-                      studyPreferences: {
-                        ...editProfileData.studyPreferences,
-                        collaborationStyle: e.target.value,
-                      },
-                    })
-                  }
-                />
-              </div>
-
-              <div className={styles.modalActions}>
-                <button
-                  type="button"
-                  className={styles.cancelModalBtn}
-                  onClick={() => setIsProfileModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className={styles.saveModalBtn}>
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 5. MODAL: FIND PARTNER RECOMMENDATIONS */}
-      {activeSpaceForPartner && (
-        <div
-          className={styles.modalOverlay}
-          onClick={() => setActiveSpaceForPartner(null)}
-        >
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className={styles.modalCloseBtn}
-              onClick={() => setActiveSpaceForPartner(null)}
-            >
-              ✕
-            </button>
-
-            <div className={styles.modalHeader}>
-              <h2>Find a Study Partner</h2>
-              <p>
-                Recommended partners for <strong>{activeSpaceForPartner.title}</strong>
-              </p>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              {mockAvailablePartners.map((partner) => (
-                <div
-                  key={partner.id}
-                  style={{
-                    padding: "16px",
-                    borderRadius: "16px",
-                    border: "1.5px solid var(--border-light)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: "14px",
-                  }}
-                >
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <strong style={{ fontSize: "15px" }}>{partner.name}</strong>
-                      <span
-                        style={{
-                          background: "var(--primary-soft)",
-                          color: "var(--primary)",
-                          padding: "2px 8px",
-                          borderRadius: "10px",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {partner.compatibility}% Match
-                      </span>
-                    </div>
-                    <p style={{ margin: "4px 0", fontSize: "12px", color: "var(--text-muted)" }}>
-                      {partner.branch} • Year {partner.year}
-                    </p>
-                    <p style={{ margin: 0, fontSize: "12px", color: "var(--text-dark)" }}>
-                      {partner.bio}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    className={styles.saveModalBtn}
-                    style={{ padding: "8px 18px", fontSize: "12px", whiteSpace: "nowrap" }}
-                    onClick={() => handleAssignPartner(partner)}
-                  >
-                    Connect
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 6. MODAL: OPEN STUDY SPACE DETAIL */}
-      {selectedSpaceDetail && (
-        <div
-          className={styles.modalOverlay}
-          onClick={() => setSelectedSpaceDetail(null)}
-        >
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className={styles.modalCloseBtn}
-              onClick={() => setSelectedSpaceDetail(null)}
-            >
-              ✕
-            </button>
-
-            <div className={styles.modalHeader}>
-              <span className={styles.spaceSubjectBadge}>
-                {selectedSpaceDetail.subject}
-              </span>
-              <h2>{selectedSpaceDetail.title}</h2>
-              <p>Active study space with <strong>{selectedSpaceDetail.partner?.name}</strong></p>
-            </div>
-
-            <div className={styles.spaceGoalBox} style={{ margin: "0 0 18px" }}>
-              <strong>Goal:</strong> {selectedSpaceDetail.goal}
-            </div>
-
-            <div style={{ marginBottom: "20px", fontSize: "13px", lineHeight: "1.6" }}>
-              <p style={{ margin: "4px 0" }}>
-                📅 <strong>Schedule:</strong> {selectedSpaceDetail.schedule}
-              </p>
-              <p style={{ margin: "4px 0" }}>
-                ⏱️ <strong>Session Duration:</strong> {selectedSpaceDetail.duration}
-              </p>
-              <p style={{ margin: "4px 0" }}>
-                💡 <strong>Style:</strong> {selectedSpaceDetail.learningStyle}
-              </p>
-              <p style={{ margin: "4px 0" }}>
-                ✅ <strong>Sessions Completed:</strong> {selectedSpaceDetail.sessionsCompleted}
-              </p>
-            </div>
-
-            <div className={styles.progressSection}>
-              <div className={styles.progressLabelRow}>
-                <span>Current Progress</span>
-                <span>{selectedSpaceDetail.progressPercent}%</span>
-              </div>
-              <div className={styles.progressTrack}>
-                <div
-                  className={styles.progressFill}
-                  style={{ width: `${selectedSpaceDetail.progressPercent}%` }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: "10px", marginTop: "24px" }}>
-              <button
-                type="button"
-                className={styles.saveModalBtn}
-                style={{ width: "100%", padding: "12px" }}
-                onClick={() => handleCompleteSession(selectedSpaceDetail.id)}
-              >
-                Log Completed Session (+15%) 📈
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={Boolean(recordToDelete)}
+        title="Delete Education Record?"
+        message={
+          recordToDelete
+            ? `Are you sure you want to remove ${recordToDelete.institutionName}? This action cannot be undone.`
+            : ""
+        }
+        confirmText="Yes, Delete Record"
+        cancelText="Cancel"
+        isDanger={true}
+        onConfirm={handleConfirmDeleteEdu}
+        onCancel={() => setRecordToDelete(null)}
+      />
     </div>
   );
 };
 
 export default DashboardPage;
-

@@ -1,0 +1,179 @@
+.formGroup {
+  margin-bottom: 18px;
+  font-family: "Montserrat", sans-serif;
+}
+
+.formLabel {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #1e242b;
+  margin-bottom: 6px;
+}
+
+.formInput {
+  width: 100%;
+  background: #faf7f5;
+  border: 1.5px solid #ece7e3;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1e242b;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.formInput:focus {
+  outline: none;
+  border-color: #ff4b2b;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(255, 75, 43, 0.12);
+}
+
+.formHelpText {
+  font-size: 11.5px;
+  color: #5f6c7b;
+  margin-top: 5px;
+}
+
+.levelSelector {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.levelPill {
+  background: #faf7f5;
+  border: 1.5px solid #ece7e3;
+  border-radius: 14px;
+  padding: 10px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e242b;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.levelPill:hover {
+  border-color: #ffd5c8;
+  background: #ffffff;
+}
+
+.activeLevelPill {
+  background: #fff1ed;
+  border-color: #ff4b2b;
+  color: #ff4b2b;
+  box-shadow: 0 2px 8px rgba(255, 75, 43, 0.15);
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e242b;
+  cursor: pointer;
+  margin: 10px 0 16px;
+  user-select: none;
+}
+
+.checkboxInput {
+  width: 16px;
+  height: 16px;
+  accent-color: #ff4b2b;
+  cursor: pointer;
+}
+
+.gradingTypeContainer {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.gradingTypeBtn {
+  flex: 1;
+  background: #faf7f5;
+  border: 1.5px solid #ece7e3;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #5f6c7b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  text-align: center;
+}
+
+.activeGradingTypeBtn {
+  background: #fff1ed;
+  border-color: #ff4b2b;
+  color: #ff4b2b;
+}
+
+.errorBanner {
+  background: #fff1f0;
+  border: 1px solid #ffccc7;
+  color: #cf1322;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.cancelModalBtn {
+  background: transparent;
+  border: 1.5px solid #ece7e3;
+  padding: 11px 22px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5f6c7b;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.cancelModalBtn:hover {
+  background: #faf7f5;
+  color: #1e242b;
+}
+
+.saveModalBtn {
+  background: linear-gradient(135deg, #ff4b2b 0%, #ff6e40 100%);
+  color: #ffffff;
+  border: none;
+  padding: 11px 26px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(255, 75, 43, 0.28);
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.saveModalBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(255, 75, 43, 0.38);
+}
+
+@media (max-width: 640px) {
+  .levelSelector {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+

@@ -1,4 +1,5 @@
 import React from "react";
+import BrandLogo from "../components/common/BrandLogo";
 import styles from "./LandingPage.module.css";
 
 interface LandingPageProps {
@@ -18,13 +19,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToAuth }) => {
       {/* 1. TOP NAVBAR */}
       <header className={styles.navbar}>
         <div className={styles.navContainer}>
-          <div className={styles.brandGroup} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-            <div className={styles.logoIcon}>SB</div>
-            <div className={styles.brandText}>
-              <span className={styles.brandTitle}>StudyBuddy</span>
-              <span className={styles.brandTagline}>Study smarter together</span>
-            </div>
-          </div>
+          <BrandLogo
+            size="md"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          />
 
           <nav className={styles.navLinks}>
             <a

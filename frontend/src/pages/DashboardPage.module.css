@@ -148,7 +148,7 @@
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  width: 270px;
+  width: 280px;
   background: #ffffff;
   border: 1.5px solid var(--border-light);
   border-radius: 20px;
@@ -594,6 +594,11 @@
   animation: modalScale 0.2s ease;
 }
 
+.profileModalContent {
+  max-width: 760px;
+  padding: 32px 36px;
+}
+
 @keyframes modalScale {
   from {
     transform: scale(0.96);
@@ -622,6 +627,7 @@
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  z-index: 10;
 }
 
 .modalCloseBtn:hover {
@@ -630,7 +636,7 @@
 }
 
 .modalHeader {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .modalHeader h2 {
@@ -644,6 +650,113 @@
   font-size: 13px;
   color: var(--text-muted);
   margin: 0;
+}
+
+/* TAB NAVIGATION IN PROFILE MODAL */
+.profileTabNav {
+  display: flex;
+  gap: 10px;
+  border-bottom: 1.5px solid var(--border-light);
+  margin-bottom: 24px;
+  padding-bottom: 4px;
+}
+
+.profileTabBtn {
+  background: transparent;
+  border: none;
+  padding: 10px 18px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profileTabBtn:hover {
+  color: var(--text-dark);
+  background: var(--bg-warm);
+}
+
+.activeProfileTabBtn {
+  color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+
+/* PARTNER RATINGS DISPLAY */
+.ratingContainer {
+  background: #fffaf7;
+  border: 1.5px solid var(--primary-border);
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ratingLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ratingTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ratingValueRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ratingStars {
+  color: #fa8c16;
+  font-size: 17px;
+  letter-spacing: 1px;
+}
+
+.ratingScoreText {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.ratingCountText {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.noRatingsBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0edea;
+  color: #718096;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 12px;
+}
+
+.ratingLockNotice {
+  font-size: 11px;
+  color: #8c98a4;
+  font-style: italic;
+  max-width: 220px;
+  text-align: right;
+  line-height: 1.4;
 }
 
 /* FORM ELEMENTS INSIDE MODAL */
@@ -688,6 +801,12 @@
   resize: vertical;
 }
 
+.formHelpText {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+
 /* AVATAR UPLOAD SECTION */
 .avatarUploadRow {
   display: flex;
@@ -713,6 +832,7 @@
   justify-content: center;
   overflow: hidden;
   box-shadow: 0 6px 16px rgba(255, 75, 43, 0.25);
+  flex-shrink: 0;
 }
 
 .avatarUploadActions {
@@ -755,11 +875,357 @@
   text-decoration: underline;
 }
 
+/* EDUCATION SECTION IN PROFILE */
+.educationSectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.educationSectionHeader h3 {
+  font-size: 17px;
+  font-weight: 800;
+  margin: 0;
+  color: var(--text-dark);
+}
+
+.addEduBtn {
+  background: var(--primary-gradient);
+  color: #ffffff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 18px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(255, 75, 43, 0.25);
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.addEduBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(255, 75, 43, 0.35);
+}
+
+.educationCardsList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.educationCard {
+  background: #ffffff;
+  border: 1.5px solid var(--border-light);
+  border-radius: 18px;
+  padding: 20px 22px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.educationCard:hover {
+  border-color: var(--primary-border);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+}
+
+.eduCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.eduBadgesRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.eduLevelBadge {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid var(--primary-border);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.pursuingBadge {
+  background: #e6f7ff;
+  color: #096dd9;
+  border: 1px solid #91d5ff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 10px;
+}
+
+.eduActionsGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.actionIconBtn {
+  background: var(--bg-warm);
+  border: 1px solid var(--border-light);
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  color: var(--text-dark);
+}
+
+.actionIconBtn:hover {
+  background: #ffffff;
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.deleteIconBtn:hover {
+  background: #fff1f0;
+  border-color: #ffa39e;
+  color: #cf1322;
+}
+
+.eduInstitution {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-dark);
+  margin: 0 0 4px;
+}
+
+.eduDetailsMeta {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+
+.eduScoreRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.eduScoreBadge {
+  background: #f6ffed;
+  color: #389e0d;
+  border: 1px solid #b7eb8f;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.eduScoreBadgeNeutral {
+  background: var(--bg-warm);
+  color: var(--text-muted);
+  border: 1px solid var(--border-light);
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.emptyEducationState {
+  text-align: center;
+  padding: 40px 20px;
+  background: var(--bg-warm);
+  border: 1.5px dashed var(--border-light);
+  border-radius: 20px;
+  margin-bottom: 20px;
+}
+
+.emptyEduIcon {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+.emptyEducationState h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--text-dark);
+}
+
+.emptyEducationState p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+}
+
+/* ADD / EDIT EDUCATION SUB-MODAL */
+.levelSelector {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.levelPill {
+  background: var(--bg-warm);
+  border: 1.5px solid var(--border-light);
+  border-radius: 14px;
+  padding: 10px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dark);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.levelPill:hover {
+  border-color: var(--primary-border);
+  background: #ffffff;
+}
+
+.activeLevelPill {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(255, 75, 43, 0.15);
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dark);
+  cursor: pointer;
+  margin: 10px 0 16px;
+}
+
+.checkboxInput {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.gradingTypeContainer {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.gradingTypeBtn {
+  flex: 1;
+  background: var(--bg-warm);
+  border: 1.5px solid var(--border-light);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  text-align: center;
+}
+
+.activeGradingTypeBtn {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.errorBanner {
+  background: #fff1f0;
+  border: 1px solid #ffccc7;
+  color: #cf1322;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.successBanner {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  color: #389e0d;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+/* DELETE CONFIRMATION DIALOG */
+.confirmModalContent {
+  max-width: 440px;
+  text-align: center;
+  padding: 32px 28px;
+}
+
+.confirmIcon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.confirmModalContent h3 {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0 0 8px;
+  color: var(--text-dark);
+}
+
+.confirmModalContent p {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.dangerBtn {
+  background: #cf1322;
+  color: #ffffff;
+  border: none;
+  padding: 11px 24px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.dangerBtn:hover {
+  background: #a8071a;
+  transform: translateY(-2px);
+}
+
+/* MODAL ACTIONS */
 .modalActions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 28px;
+  margin-top: 24px;
 }
 
 .cancelModalBtn {
@@ -772,6 +1238,7 @@
   color: var(--text-muted);
   cursor: pointer;
   font-family: inherit;
+  transition: all 0.2s ease;
 }
 
 .cancelModalBtn:hover {
@@ -810,6 +1277,10 @@
   .spacesGrid {
     grid-template-columns: 1fr;
   }
+
+  .levelSelector {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 640px) {
@@ -824,5 +1295,17 @@
   .modalContent {
     padding: 24px 20px;
   }
-}
 
+  .ratingContainer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ratingLockNotice {
+    text-align: left;
+  }
+
+  .levelSelector {
+    grid-template-columns: 1fr;
+  }
+}

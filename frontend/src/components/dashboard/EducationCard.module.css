@@ -1,0 +1,124 @@
+.educationCard {
+  background: #ffffff;
+  border: 1.5px solid #ece7e3;
+  border-radius: 18px;
+  padding: 20px 22px;
+  transition: all 0.2s ease;
+  position: relative;
+  font-family: "Montserrat", sans-serif;
+}
+
+.educationCard:hover {
+  border-color: #ffd5c8;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+}
+
+.eduCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.eduBadgesRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.eduLevelBadge {
+  background: #fff1ed;
+  color: #ff4b2b;
+  border: 1px solid #ffd5c8;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.pursuingBadge {
+  background: #e6f7ff;
+  color: #096dd9;
+  border: 1px solid #91d5ff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 10px;
+}
+
+.eduActionsGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.actionIconBtn {
+  background: #faf7f5;
+  border: 1px solid #ece7e3;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  color: #1e242b;
+}
+
+.actionIconBtn:hover {
+  background: #ffffff;
+  border-color: #ff4b2b;
+  color: #ff4b2b;
+}
+
+.deleteIconBtn:hover {
+  background: #fff1f0;
+  border-color: #ffa39e;
+  color: #cf1322;
+}
+
+.eduInstitution {
+  font-size: 16px;
+  font-weight: 800;
+  color: #1e242b;
+  margin: 0 0 4px;
+}
+
+.eduDetailsMeta {
+  font-size: 13px;
+  color: #5f6c7b;
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+
+.eduScoreRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.eduScoreBadge {
+  background: #f6ffed;
+  color: #389e0d;
+  border: 1px solid #b7eb8f;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.eduScoreBadgeNeutral {
+  background: #faf7f5;
+  color: #5f6c7b;
+  border: 1px solid #ece7e3;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+

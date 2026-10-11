@@ -1,0 +1,38 @@
+.statCard {
+  background: #ffffff;
+  border: 1.5px solid #ece7e3;
+  border-radius: 20px;
+  padding: 24px 28px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: all 0.2s ease;
+  font-family: "Montserrat", sans-serif;
+}
+
+.statCard:hover {
+  transform: translateY(-3px);
+  border-color: #ffd5c8;
+}
+
+.statNumber {
+  font-size: 42px;
+  font-weight: 800;
+  color: #ff4b2b;
+  line-height: 1;
+}
+
+.statInfo h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e242b;
+}
+
+.statInfo p {
+  margin: 0;
+  font-size: 12px;
+  color: #5f6c7b;
+}
+
