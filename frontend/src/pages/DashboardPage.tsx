@@ -15,10 +15,12 @@ import EducationFormModal from "../components/dashboard/EducationFormModal";
 import FindPartnerModal from "../components/dashboard/FindPartnerModal";
 import StudySpaceDetailModal from "../components/dashboard/StudySpaceDetailModal";
 import ProfileModal from "../components/dashboard/ProfileModal";
+import { usePersistedState } from "../hooks/usePersistedState";
 import styles from "./DashboardPage.module.css";
 
 interface DashboardPageProps {
   onLogout: () => void;
+  navigate: (path: string, replace?: boolean) => void;
   user?: { username: string };
 }
 
@@ -160,9 +162,9 @@ const mockAvailablePartners: StudyPartner[] = [
   },
 ];
 
-const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
-  const [profile, setProfile] = useState<UserProfile>(initialUserProfile);
-  const [spaces, setSpaces] = useState<StudySpace[]>(initialStudySpaces);
+const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, navigate }) => {
+  const [profile, setProfile] = usePersistedState<UserProfile>("studybuddy-profile", initialUserProfile);
+  const [spaces, setSpaces] = usePersistedState<StudySpace[]>("studybuddy-spaces", initialStudySpaces);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
 
   // Modals state
@@ -170,7 +172,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
   const [activeProfileTab, setActiveProfileTab] = useState<"personal" | "education">("personal");
 
   const [isAddGoalModalOpen, setIsAddGoalModalOpen] = useState<boolean>(false);
-  const [activeSpaceForPartner, setActiveSpaceForPartner] = useState<StudySpace | null>(null);
+  const [activeSpaceForPartner, setActiveSpaceForPartner] = useState<StudySpace | null>(() => {
+    const matchId = new URLSearchParams(window.location.search).get("matches");
+    return spaces.find((space) => space.id === matchId) ?? null;
+  });
   const [selectedSpaceDetail, setSelectedSpaceDetail] = useState<StudySpace | null>(null);
 
   // Education Sub-Modal & Delete Confirmation
@@ -240,18 +245,15 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
     title: string;
     subject: string;
     goal: string;
-    schedule: string;
-    duration: string;
-    learningStyle: string;
-  }) => {
+    }) => {
     const newSpace: StudySpace = {
       id: `space-${Date.now()}`,
       title: goalData.title,
       subject: goalData.subject || goalData.title,
       goal: goalData.goal,
-      schedule: goalData.schedule,
-      duration: goalData.duration,
-      learningStyle: goalData.learningStyle,
+      schedule: "Schedule with your study partner",
+      duration: "Not set",
+      learningStyle: "To be decided",
       partner: undefined,
       sessionsCompleted: 0,
       upcomingSessions: 0,
@@ -278,6 +280,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
       )
     );
     setActiveSpaceForPartner(null);
+    navigate("/dashboard", true);
   };
 
   const handleCompleteSession = (spaceId: string) => {
@@ -440,7 +443,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
                 key={space.id}
                 space={space}
                 onOpen={(s) => setSelectedSpaceDetail(s)}
-                onFindPartner={(s) => setActiveSpaceForPartner(s)}
+                onFindPartner={(s) => navigate(`/questionnaire?space=${encodeURIComponent(s.id)}&title=${encodeURIComponent(s.title)}`)}
               />
             ))}
           </div>
@@ -483,7 +486,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
         isOpen={Boolean(activeSpaceForPartner)}
         space={activeSpaceForPartner}
         partners={mockAvailablePartners}
-        onClose={() => setActiveSpaceForPartner(null)}
+        onClose={() => {
+          setActiveSpaceForPartner(null);
+          navigate("/dashboard", true);
+        }}
         onConnect={handleAssignPartner}
       />
 

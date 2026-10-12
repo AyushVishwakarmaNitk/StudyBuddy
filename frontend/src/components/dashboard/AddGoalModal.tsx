@@ -1,211 +1,69 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 import Modal from "../common/Modal";
+
+interface GoalForm {
+  title: string;
+  subject: string;
+  goal: string;
+}
 
 interface AddGoalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (goal: {
-    title: string;
-    subject: string;
-    goal: string;
-    schedule: string;
-    duration: string;
-    learningStyle: string;
-  }) => void;
+  onSubmit: (goal: GoalForm) => void;
 }
 
-export const AddGoalModal: React.FC<AddGoalModalProps> = ({
-  isOpen,
-  onClose,
-  onSubmit,
-}) => {
-  const [formData, setFormData] = useState({
-    title: "",
-    subject: "",
-    goal: "",
-    schedule: "Evenings 7:00 PM - 9:00 PM",
-    duration: "60 mins",
-    learningStyle: "Pomodoro Focus",
-  });
+const emptyForm: GoalForm = { title: "", subject: "", goal: "" };
+const fieldStyle = {
+  boxSizing: "border-box" as const,
+  width: "100%",
+  border: "1.5px solid #ece7e3",
+  borderRadius: "12px",
+  padding: "12px 14px",
+  background: "#faf7f5",
+  color: "#1e242b",
+  font: "inherit",
+  fontSize: "13px",
+};
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.title.trim() || !formData.goal.trim()) return;
+const AddGoalModal = ({ isOpen, onClose, onSubmit }: AddGoalModalProps) => {
+  const [form, setForm] = useState<GoalForm>(emptyForm);
 
-    onSubmit({
-      ...formData,
-      subject: formData.subject.trim() || formData.title.trim(),
-    });
+  const updateField = (field: keyof GoalForm, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }));
+  };
 
-    setFormData({
-      title: "",
-      subject: "",
-      goal: "",
-      schedule: "Evenings 7:00 PM - 9:00 PM",
-      duration: "60 mins",
-      learningStyle: "Pomodoro Focus",
-    });
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const goal = {
+      title: form.title.trim(),
+      subject: form.subject.trim(),
+      goal: form.goal.trim(),
+    };
+    if (!goal.title || !goal.subject || !goal.goal) return;
+    onSubmit(goal);
+    setForm(emptyForm);
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="+ Add a Study Goal"
-      subtitle="Create a dedicated study space to track progress and find matching partners."
-    >
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: "16px" }}>
-          <label style={{ display: "block", fontSize: "12.5px", fontWeight: 700, marginBottom: "6px" }}>
-            Goal Title / Focus *
-          </label>
-          <input
-            type="text"
-            placeholder="e.g., Learn Python, DBMS Exam Prep, GATE Mathematics"
-            value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            required
-            style={{
-              width: "100%",
-              background: "#faf7f5",
-              border: "1.5px solid #ece7e3",
-              borderRadius: "12px",
-              padding: "12px 14px",
-              fontSize: "13px",
-              fontFamily: "inherit",
-              boxSizing: "border-box",
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: "16px" }}>
-          <label style={{ display: "block", fontSize: "12.5px", fontWeight: 700, marginBottom: "6px" }}>
-            Subject / Course *
-          </label>
-          <input
-            type="text"
-            placeholder="e.g., Computer Science, Database Systems, Web Development"
-            value={formData.subject}
-            onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-            required
-            style={{
-              width: "100%",
-              background: "#faf7f5",
-              border: "1.5px solid #ece7e3",
-              borderRadius: "12px",
-              padding: "12px 14px",
-              fontSize: "13px",
-              fontFamily: "inherit",
-              boxSizing: "border-box",
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: "16px" }}>
-          <label style={{ display: "block", fontSize: "12.5px", fontWeight: 700, marginBottom: "6px" }}>
-            Specific Target / Objective *
-          </label>
-          <textarea
-            placeholder="e.g., Complete Python fundamentals and solve 30 LeetCode questions together."
-            value={formData.goal}
-            onChange={(e) => setFormData({ ...formData, goal: e.target.value })}
-            required
-            style={{
-              width: "100%",
-              background: "#faf7f5",
-              border: "1.5px solid #ece7e3",
-              borderRadius: "12px",
-              padding: "12px 14px",
-              fontSize: "13px",
-              fontFamily: "inherit",
-              boxSizing: "border-box",
-              minHeight: "80px",
-              resize: "vertical",
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: "16px" }}>
-          <label style={{ display: "block", fontSize: "12.5px", fontWeight: 700, marginBottom: "6px" }}>
-            Preferred Schedule
-          </label>
-          <input
-            type="text"
-            value={formData.schedule}
-            onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-            style={{
-              width: "100%",
-              background: "#faf7f5",
-              border: "1.5px solid #ece7e3",
-              borderRadius: "12px",
-              padding: "12px 14px",
-              fontSize: "13px",
-              fontFamily: "inherit",
-              boxSizing: "border-box",
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: "24px" }}>
-          <label style={{ display: "block", fontSize: "12.5px", fontWeight: 700, marginBottom: "6px" }}>
-            Session Duration & Style
-          </label>
-          <select
-            value={formData.learningStyle}
-            onChange={(e) => setFormData({ ...formData, learningStyle: e.target.value })}
-            style={{
-              width: "100%",
-              background: "#faf7f5",
-              border: "1.5px solid #ece7e3",
-              borderRadius: "12px",
-              padding: "12px 14px",
-              fontSize: "13px",
-              fontFamily: "inherit",
-              boxSizing: "border-box",
-            }}
-          >
-            <option value="Pomodoro Focus">Pomodoro (25m Focus / 5m Break)</option>
-            <option value="Silent Accountability">Silent Accountability</option>
-            <option value="Active Problem Solving">Active Problem Solving & Discussion</option>
-            <option value="Collaborative Pair Coding">Collaborative Pair Coding</option>
-          </select>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: "transparent",
-              border: "1.5px solid #ece7e3",
-              padding: "11px 22px",
-              borderRadius: "20px",
-              fontSize: "13px",
-              fontWeight: 700,
-              color: "#5f6c7b",
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            style={{
-              background: "linear-gradient(135deg, #ff4b2b 0%, #ff6e40 100%)",
-              color: "#ffffff",
-              border: "none",
-              padding: "11px 26px",
-              borderRadius: "20px",
-              fontSize: "13px",
-              fontWeight: 700,
-              cursor: "pointer",
-              boxShadow: "0 6px 18px rgba(255, 75, 43, 0.28)",
-              fontFamily: "inherit",
-            }}
-          >
-            Create Study Space
-          </button>
+    <Modal isOpen={isOpen} onClose={onClose} title="Add a Study Goal" subtitle="Set a focus for your next study space.">
+      <form onSubmit={handleSubmit} style={{ display: "grid", gap: "16px" }}>
+        <label style={{ display: "grid", gap: "7px", fontSize: "12.5px", fontWeight: 700 }}>
+          Goal title *
+          <input autoFocus value={form.title} onChange={(event) => updateField("title", event.target.value)} placeholder="e.g., Prepare for my DBMS exam" required maxLength={80} style={fieldStyle} />
+        </label>
+        <label style={{ display: "grid", gap: "7px", fontSize: "12.5px", fontWeight: 700 }}>
+          Course or subject *
+          <input value={form.subject} onChange={(event) => updateField("subject", event.target.value)} placeholder="e.g., Database Management Systems" required maxLength={80} style={fieldStyle} />
+        </label>
+        <label style={{ display: "grid", gap: "7px", fontSize: "12.5px", fontWeight: 700 }}>
+          About this goal *
+          <textarea value={form.goal} onChange={(event) => updateField("goal", event.target.value)} placeholder="What would you like to accomplish?" required maxLength={500} rows={4} style={{ ...fieldStyle, resize: "vertical" }} />
+        </label>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "4px" }}>
+          <button type="button" onClick={onClose} style={{ border: "1.5px solid #ece7e3", borderRadius: "20px", padding: "10px 20px", background: "white", color: "#5f6c7b", fontWeight: 700, cursor: "pointer" }}>Cancel</button>
+          <button type="submit" style={{ border: 0, borderRadius: "20px", padding: "10px 22px", background: "linear-gradient(135deg, #ff4b2b, #ff6e40)", color: "white", fontWeight: 700, cursor: "pointer" }}>Create Study Goal</button>
         </div>
       </form>
     </Modal>
@@ -213,4 +71,3 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({
 };
 
 export default AddGoalModal;
-
