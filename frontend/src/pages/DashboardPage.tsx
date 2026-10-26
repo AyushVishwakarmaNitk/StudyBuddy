@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type {
   StudySpace,
   UserProfile,
   StudyPartner,
   EducationRecord,
 } from "../types/dashboard";
+import type { AuthUser } from "../api/auth";
 import BrandLogo from "../components/common/BrandLogo";
 import Avatar from "../components/common/Avatar";
 import ConfirmDialog from "../components/common/ConfirmDialog";
@@ -19,7 +20,7 @@ import styles from "./DashboardPage.module.css";
 
 interface DashboardPageProps {
   onLogout: () => void;
-  user?: { username: string };
+  user?: AuthUser | null;
 }
 
 const initialUserProfile: UserProfile = {
@@ -160,8 +161,41 @@ const mockAvailablePartners: StudyPartner[] = [
   },
 ];
 
-const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
-  const [profile, setProfile] = useState<UserProfile>(initialUserProfile);
+const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
+  const [profile, setProfile] = useState<UserProfile>(() => {
+    if (user) {
+      const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username;
+      return {
+        ...initialUserProfile,
+        name: fullName,
+        username: user.username,
+        email: user.email || `${user.username}@example.com`,
+        bio: user.profile?.bio || initialUserProfile.bio,
+        branch: user.profile?.branch || initialUserProfile.branch,
+        year: user.profile?.year || initialUserProfile.year,
+        avatarUrl: user.profile?.avatar_url || null,
+      };
+    }
+    return initialUserProfile;
+  });
+
+  // Sync profile when authenticated user data updates
+  useEffect(() => {
+    if (user) {
+      const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username;
+      setProfile((prev) => ({
+        ...prev,
+        name: fullName,
+        username: user.username,
+        email: user.email || prev.email,
+        bio: user.profile?.bio ?? prev.bio,
+        branch: user.profile?.branch ?? prev.branch,
+        year: user.profile?.year ?? prev.year,
+        avatarUrl: user.profile?.avatar_url ?? prev.avatarUrl,
+      }));
+    }
+  }, [user]);
+
   const [spaces, setSpaces] = useState<StudySpace[]>(initialStudySpaces);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
 
