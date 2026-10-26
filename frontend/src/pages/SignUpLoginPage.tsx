@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import BrandLogo from "../components/common/BrandLogo";
+import { authApi } from "../api/auth";
+import type { AuthUser } from "../api/auth";
 import styles from "./SignUpLoginPage.module.css";
 
 interface LoginFormData {
@@ -18,7 +20,7 @@ interface RegisterFormData {
 interface SignUpLoginPageProps {
   initialIsSignUp?: boolean;
   onBackToLanding?: () => void;
-  onLoginSuccess?: (userData: { username: string }) => void;
+  onLoginSuccess?: (userData: AuthUser) => void;
 }
 
 const SignUpLoginPage = ({
@@ -31,10 +33,11 @@ const SignUpLoginPage = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [registrationSuccess, setRegistrationSuccess] = useState<boolean>(false);
+  const [registeredUser, setRegisteredUser] = useState<AuthUser | null>(null);
 
   const [loginData, setLoginData] = useState<LoginFormData>({
-    username: "student",
-    password: "study123",
+    username: "",
+    password: "",
   });
 
   const [registerData, setRegisterData] = useState<RegisterFormData>({
@@ -65,47 +68,101 @@ const SignUpLoginPage = ({
     registerData.password2.length > 0 &&
     registerData.password !== registerData.password2;
 
-  const handleLoginSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleLoginSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!loginData.username.trim() || !loginData.password) {
+      setError("Please enter your username/email and password.");
+      return;
+    }
+
     setIsLoading(true);
-    // TODO: call your login API here
-    console.log("Login:", loginData);
-    setTimeout(() => {
-      setIsLoading(false);
+    setError(null);
+
+    try {
+      const response = await authApi.login({
+        username: loginData.username.trim(),
+        password: loginData.password,
+      });
+
       if (onLoginSuccess) {
-        onLoginSuccess({ username: loginData.username });
+        onLoginSuccess(response.user);
       }
-    }, 800); // fake delay, remove later
+    } catch (err: any) {
+      setError(err.message || "Invalid credentials. Please check your username/email and password.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleRegisterSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleRegisterSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (passwordsMismatch) return;
+    if (passwordsMismatch) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    if (registerData.password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      return;
+    }
+
     setIsLoading(true);
-    // TODO: call your register API here
-    console.log("Register:", registerData);
-    setTimeout(() => {
-      setIsLoading(false);
+    setError(null);
+
+    try {
+      const response = await authApi.register({
+        username: registerData.username.trim(),
+        email: registerData.email.trim(),
+        password: registerData.password,
+        password2: registerData.password2,
+      });
+
+      setRegisteredUser(response.user);
       setRegistrationSuccess(true);
-    }, 800); // fake delay, remove later
+    } catch (err: any) {
+      setError(err.message || "Registration failed. Please check your details and try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (registrationSuccess) {
     return (
       <div className={styles.page}>
         <div className={styles.successMessage}>
-          <h2>Registration Successful!</h2>
-          <p>Please check your email to verify your account.</p>
-          <p>After verification, you can sign in.</p>
-          <button
-            className={styles.primaryBtn}
-            onClick={() => {
-              setRegistrationSuccess(false);
-              switchPanel(false);
-            }}
-          >
-            Back to Sign In
-          </button>
+          <h2>Registration Successful! 🎉</h2>
+          <p>
+            Welcome to StudyBuddy AI, <strong>{registeredUser?.username}</strong>!
+          </p>
+          <p>Your student account has been created and authenticated with our PostgreSQL backend.</p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "24px" }}>
+            <button
+              type="button"
+              className={styles.primaryBtn}
+              onClick={() => {
+                if (registeredUser && onLoginSuccess) {
+                  onLoginSuccess(registeredUser);
+                } else {
+                  setRegistrationSuccess(false);
+                  switchPanel(false);
+                }
+              }}
+            >
+              Enter Dashboard 🚀
+            </button>
+            <button
+              type="button"
+              className={styles.ghost}
+              style={{ color: "#555", borderColor: "#ddd", padding: "10px 24px" }}
+              onClick={() => {
+                setRegistrationSuccess(false);
+                switchPanel(false);
+              }}
+            >
+              Sign In with Credentials
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -166,7 +223,7 @@ const SignUpLoginPage = ({
             <input
               type="password"
               name="password"
-              placeholder="Password"
+              placeholder="Password (min 8 characters)"
               value={registerData.password}
               onChange={handleRegisterChange}
               autoComplete="new-password"
@@ -200,7 +257,6 @@ const SignUpLoginPage = ({
 
             <div className={styles.googleLogin}>
               <span>or</span>
-              {/* TODO: replace with real Google auth later */}
               <button type="button" className={styles.googleBtn} disabled={isLoading}>
                 Continue with Google
               </button>
@@ -235,7 +291,7 @@ const SignUpLoginPage = ({
             <input
               type="text"
               name="username"
-              placeholder="Username"
+              placeholder="Username or Email"
               value={loginData.username}
               onChange={handleLoginChange}
               autoComplete="username"
