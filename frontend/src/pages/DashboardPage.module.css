@@ -1309,3 +1309,38 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* EMPTY STATE – shown when a new user has no study goals yet */
+.emptyState {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  background: #fff;
+  border: 2px dashed #ffd6c8;
+  border-radius: 18px;
+  text-align: center;
+}
+
+.emptyStateIcon {
+  font-size: 56px;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.emptyStateTitle {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 10px;
+}
+
+.emptyStateText {
+  font-size: 0.95rem;
+  color: #5a6a7a;
+  max-width: 380px;
+  line-height: 1.6;
+  margin: 0 0 24px;
+}

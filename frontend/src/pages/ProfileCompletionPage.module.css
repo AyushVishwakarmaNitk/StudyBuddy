@@ -1,0 +1,362 @@
+.pageWrapper {
+  min-height: 100vh;
+  background-color: #fffbf7;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #2b2c34;
+  display: flex;
+  flex-direction: column;
+}
+
+.topNavbar {
+  background: #ffffff;
+  border-bottom: 1px solid #f0e6dd;
+  padding: 14px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logoutGhostBtn {
+  background: transparent;
+  border: 1px solid #e0d5cb;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #6c757d;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logoutGhostBtn:hover {
+  background: #fff2e8;
+  border-color: #e25822;
+  color: #e25822;
+}
+
+.mainContainer {
+  max-width: 780px;
+  width: 100%;
+  margin: 36px auto 60px;
+  padding: 0 20px;
+}
+
+.onboardingCard {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 36px 32px;
+  box-shadow: 0 10px 30px rgba(226, 88, 34, 0.06);
+  border: 1px solid #fae8dc;
+}
+
+.headerSection {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.headerBadge {
+  display: inline-block;
+  background: #fff2e8;
+  color: #e25822;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.pageTitle {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0 0 8px;
+}
+
+.pageSubtitle {
+  font-size: 0.98rem;
+  color: #666;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Progress Tracker */
+.progressContainer {
+  background: #faf7f4;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 30px;
+  border: 1px solid #f0e6dd;
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.progressBarBg {
+  background: #e9ecef;
+  border-radius: 10px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.progressBarFill {
+  background: linear-gradient(90deg, #ff8c42, #e25822);
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.4s ease;
+}
+
+/* Steps Indicator */
+.stepsNav {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  margin-bottom: 32px;
+}
+
+.stepNode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+  cursor: pointer;
+}
+
+.stepCircle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  background: #f1f3f5;
+  color: #868e96;
+  border: 2px solid #e9ecef;
+  margin-bottom: 6px;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.activeStepCircle {
+  background: #e25822;
+  color: #ffffff;
+  border-color: #e25822;
+  box-shadow: 0 0 0 4px rgba(226, 88, 34, 0.2);
+}
+
+.completedStepCircle {
+  background: #fff2e8;
+  color: #e25822;
+  border-color: #e25822;
+}
+
+.stepLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #666;
+  text-align: center;
+}
+
+.activeStepLabel {
+  color: #e25822;
+  font-weight: 700;
+}
+
+/* Form Styles */
+.formSection {
+  animation: fadeIn 0.3s ease;
+}
+
+.formGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.formGroup {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.requiredStar {
+  color: #e25822;
+  margin-left: 2px;
+}
+
+.input, .textarea, .select {
+  border: 1.5px solid #e0d5cb;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  color: #333;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.input:focus, .textarea:focus, .select:focus {
+  outline: none;
+  border-color: #e25822;
+  box-shadow: 0 0 0 3px rgba(226, 88, 34, 0.15);
+}
+
+.textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.helpText {
+  font-size: 0.78rem;
+  color: #8c98a4;
+  margin-top: 5px;
+}
+
+/* DP Avatar upload */
+.avatarSection {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #faf7f4;
+  border-radius: 12px;
+  border: 1px solid #f0e6dd;
+}
+
+.avatarActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.uploadBtn {
+  background: #ffffff;
+  border: 1.5px solid #e25822;
+  color: #e25822;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-block;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.uploadBtn:hover {
+  background: #fff2e8;
+}
+
+.removeAvatarBtn {
+  background: transparent;
+  border: none;
+  color: #8c98a4;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}
+
+.removeAvatarBtn:hover {
+  color: #cf1322;
+}
+
+/* Actions */
+.buttonRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid #f0e6dd;
+}
+
+.secondaryBtn {
+  background: #ffffff;
+  border: 1.5px solid #e0d5cb;
+  border-radius: 10px;
+  padding: 11px 22px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.secondaryBtn:hover {
+  background: #f8f9fa;
+  border-color: #ced4da;
+}
+
+.primaryBtn {
+  background: #e25822;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 28px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.primaryBtn:hover {
+  background: #cc4714;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(226, 88, 34, 0.25);
+}
+
+.primaryBtn:disabled {
+  background: #f0a384;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.errorBanner {
+  background: #fff1f0;
+  border: 1px solid #ffa39e;
+  color: #cf1322;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  margin-bottom: 20px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  .formGrid2 {
+    grid-template-columns: 1fr;
+  }
+  .onboardingCard {
+    padding: 24px 18px;
+  }
+}
+

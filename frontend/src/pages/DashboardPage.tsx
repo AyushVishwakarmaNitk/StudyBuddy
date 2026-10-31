@@ -6,6 +6,8 @@ import type {
   EducationRecord,
 } from "../types/dashboard";
 import type { AuthUser } from "../api/auth";
+import { authApi } from "../api/auth";
+import { studyBuddyApi } from "../api/studyBuddy";
 import BrandLogo from "../components/common/BrandLogo";
 import Avatar from "../components/common/Avatar";
 import ConfirmDialog from "../components/common/ConfirmDialog";
@@ -23,180 +25,51 @@ interface DashboardPageProps {
   user?: AuthUser | null;
 }
 
-const initialUserProfile: UserProfile = {
-  name: "Ayush Vishwakarma",
-  username: "ayush_v",
-  email: "ayush@example.com",
+const defaultInitialProfile: UserProfile = {
+  name: "Student",
+  username: "student",
+  email: "student@example.com",
   avatarUrl: null,
-  bio: "3rd Year CSE student passionate about Web Dev, Algorithms & Machine Learning.",
-  branch: "Computer Science & Engineering",
-  year: 3,
-  rating: {
-    average: 4.8,
-    count: 14,
-  },
-  education: [
-    {
-      id: "edu-1",
-      level: "class_10",
-      institutionName: "Delhi Public School",
-      board: "CBSE",
-      passingYear: 2020,
-      percentage: 94.2,
-    },
-    {
-      id: "edu-2",
-      level: "class_12",
-      institutionName: "Delhi Public School",
-      board: "CBSE",
-      passingYear: 2022,
-      stream: "Science (PCM)",
-      percentage: 92.6,
-    },
-    {
-      id: "edu-3",
-      level: "ug",
-      institutionName: "National Institute of Technology Karnataka (NITK)",
-      degree: "B.Tech",
-      specialization: "Computer Science & Engineering",
-      startYear: 2022,
-      completionYear: 2026,
-      isCurrentlyStudying: true,
-      gradingType: "cgpa",
-      cgpa: 8.85,
-      cgpaScale: 10,
-    },
-  ],
+  bio: "",
+  branch: "",
+  year: 1,
+  rating: null,
+  education: [],
   studyPreferences: {
-    subjects: ["Python", "DBMS", "React", "Data Structures"],
-    availability: "Evenings 7:00 PM - 10:00 PM",
-    sessionDuration: "60 mins",
-    collaborationStyle: "Pomodoro & Silent Accountability",
+    subjects: [],
+    availability: "",
+    sessionDuration: "",
+    collaborationStyle: "",
   },
 };
-
-const initialStudySpaces: StudySpace[] = [
-  {
-    id: "space-1",
-    title: "Learn Python",
-    subject: "Python",
-    goal: "Complete Python fundamentals",
-    schedule: "Mon, Wed, Fri · 7:00 PM",
-    duration: "60 mins",
-    learningStyle: "Pomodoro Focus",
-    partner: {
-      id: "p-alex",
-      name: "Alex",
-      branch: "CSE",
-      year: 3,
-      compatibility: 95,
-      bio: "Python & Backend enthusiast, building APIs",
-    },
-    sessionsCompleted: 3,
-    upcomingSessions: 1,
-    progressPercent: 55,
-    status: "active",
-  },
-  {
-    id: "space-2",
-    title: "DBMS Exam Prep",
-    subject: "DBMS",
-    goal: "Revise normalization and SQL",
-    schedule: "Tue, Thu · 8:00 PM",
-    duration: "90 mins",
-    learningStyle: "Active Problem Solving",
-    partner: {
-      id: "p-sam",
-      name: "Sam",
-      branch: "IT",
-      year: 3,
-      compatibility: 91,
-      bio: "Preparing for semester finals & database design",
-    },
-    sessionsCompleted: 4,
-    upcomingSessions: 1,
-    progressPercent: 80,
-    status: "active",
-  },
-  {
-    id: "space-3",
-    title: "Web Development",
-    subject: "React & TypeScript",
-    goal: "Build a React project together.",
-    schedule: "Weekends · 4:00 PM",
-    duration: "120 mins",
-    learningStyle: "Collaborative Pair Coding",
-    partner: undefined,
-    sessionsCompleted: 0,
-    upcomingSessions: 0,
-    progressPercent: 10,
-    status: "partner_needed",
-  },
-];
-
-const mockAvailablePartners: StudyPartner[] = [
-  {
-    id: "p-priya",
-    name: "Priya Sharma",
-    branch: "CSE",
-    year: 3,
-    compatibility: 96,
-    bio: "Focusing on Full-Stack React & Node.js projects.",
-  },
-  {
-    id: "p-rohan",
-    name: "Rohan Verma",
-    branch: "IT",
-    year: 3,
-    compatibility: 89,
-    bio: "Looking for a dedicated coding accountability partner.",
-  },
-  {
-    id: "p-sneha",
-    name: "Sneha Patel",
-    branch: "ECE",
-    year: 2,
-    compatibility: 86,
-    bio: "Studying Web Development fundamentals & Git.",
-  },
-];
 
 const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
   const [profile, setProfile] = useState<UserProfile>(() => {
     if (user) {
       const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username;
       return {
-        ...initialUserProfile,
+        ...defaultInitialProfile,
         name: fullName,
         username: user.username,
         email: user.email || `${user.username}@example.com`,
-        bio: user.profile?.bio || initialUserProfile.bio,
-        branch: user.profile?.branch || initialUserProfile.branch,
-        year: user.profile?.year || initialUserProfile.year,
+        bio: user.profile?.bio || "",
+        branch: user.profile?.branch || "",
+        year: user.profile?.year || 1,
         avatarUrl: user.profile?.avatar_url || null,
+        rating: user.profile?.rating || null,
+        studyPreferences: {
+          subjects: user.profile?.study_preferences?.subjects || [],
+          availability: user.profile?.availability || "",
+          sessionDuration: user.profile?.session_duration || "",
+          collaborationStyle: user.profile?.collaboration_style || "",
+        },
       };
     }
-    return initialUserProfile;
+    return defaultInitialProfile;
   });
 
-  // Sync profile when authenticated user data updates
-  useEffect(() => {
-    if (user) {
-      const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username;
-      setProfile((prev) => ({
-        ...prev,
-        name: fullName,
-        username: user.username,
-        email: user.email || prev.email,
-        bio: user.profile?.bio ?? prev.bio,
-        branch: user.profile?.branch ?? prev.branch,
-        year: user.profile?.year ?? prev.year,
-        avatarUrl: user.profile?.avatar_url ?? prev.avatarUrl,
-      }));
-    }
-  }, [user]);
-
-  const [spaces, setSpaces] = useState<StudySpace[]>(initialStudySpaces);
+  const [spaces, setSpaces] = useState<StudySpace[]>([]);
+  const [availablePartners, setAvailablePartners] = useState<StudyPartner[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
 
   // Modals state
@@ -212,6 +85,53 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
   const [editingEduRecord, setEditingEduRecord] = useState<EducationRecord | null>(null);
   const [recordToDelete, setRecordToDelete] = useState<EducationRecord | null>(null);
 
+  // Load Real Data from Backend APIs on Mount
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [educationRecords, studySpaces, partnersList] = await Promise.all([
+          studyBuddyApi.getEducation().catch(() => []),
+          studyBuddyApi.getStudySpaces().catch(() => []),
+          studyBuddyApi.getAvailablePartners().catch(() => []),
+        ]);
+
+        if (educationRecords && Array.isArray(educationRecords)) {
+          setProfile((prev) => ({ ...prev, education: educationRecords }));
+        }
+        // Always replace spaces with whatever the API returned (including empty [])
+        // so new users never see the hardcoded placeholder
+        if (Array.isArray(studySpaces)) {
+          setSpaces(studySpaces);
+        }
+        if (partnersList && partnersList.length > 0) {
+          setAvailablePartners(partnersList);
+        }
+      } catch (err) {
+        console.error("Error loading dashboard data from backend:", err);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Sync profile when authenticated user data updates
+  useEffect(() => {
+    if (user) {
+      const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username;
+      setProfile((prev) => ({
+        ...prev,
+        name: fullName,
+        username: user.username,
+        email: user.email || prev.email,
+        bio: user.profile?.bio ?? prev.bio,
+        branch: user.profile?.branch ?? prev.branch,
+        year: user.profile?.year ?? prev.year,
+        avatarUrl: user.profile?.avatar_url ?? prev.avatarUrl,
+        rating: user.profile?.rating ?? prev.rating,
+      }));
+    }
+  }, [user]);
+
   // Stats calculation
   const totalGoals = spaces.length;
   const totalPartners = spaces.filter((s) => s.partner !== undefined).length;
@@ -225,8 +145,23 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
   };
 
   // Profile update handler
-  const handleSaveProfile = (updatedProfile: UserProfile) => {
+  const handleSaveProfile = async (updatedProfile: UserProfile) => {
     setProfile(updatedProfile);
+    try {
+      await authApi.updateProfile({
+        name: updatedProfile.name,
+        bio: updatedProfile.bio,
+        branch: updatedProfile.branch,
+        year: updatedProfile.year,
+        avatar_url: updatedProfile.avatarUrl,
+        availability: updatedProfile.studyPreferences.availability,
+        collaboration_style: updatedProfile.studyPreferences.collaborationStyle,
+        session_duration: updatedProfile.studyPreferences.sessionDuration,
+        subjects: updatedProfile.studyPreferences.subjects,
+      });
+    } catch (err) {
+      console.error("Failed to update profile on backend:", err);
+    }
   };
 
   // Education handlers
@@ -240,19 +175,31 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
     setIsEduModalOpen(true);
   };
 
-  const handleSaveEduRecord = (newOrUpdated: EducationRecord) => {
+  const handleSaveEduRecord = async (newOrUpdated: EducationRecord) => {
     const currentList = profile.education || [];
-    let updatedList: EducationRecord[];
 
     if (editingEduRecord) {
-      updatedList = currentList.map((rec) =>
-        rec.id === editingEduRecord.id ? newOrUpdated : rec
-      );
+      try {
+        const saved = await studyBuddyApi.updateEducation(editingEduRecord.id, newOrUpdated);
+        const updatedList = currentList.map((rec) =>
+          rec.id === editingEduRecord.id ? saved : rec
+        );
+        setProfile({ ...profile, education: updatedList });
+      } catch {
+        const updatedList = currentList.map((rec) =>
+          rec.id === editingEduRecord.id ? newOrUpdated : rec
+        );
+        setProfile({ ...profile, education: updatedList });
+      }
     } else {
-      updatedList = [...currentList, newOrUpdated];
+      try {
+        const saved = await studyBuddyApi.createEducation(newOrUpdated);
+        setProfile({ ...profile, education: [...currentList, saved] });
+      } catch {
+        setProfile({ ...profile, education: [...currentList, newOrUpdated] });
+      }
     }
 
-    setProfile({ ...profile, education: updatedList });
     setIsEduModalOpen(false);
     setEditingEduRecord(null);
   };
@@ -261,16 +208,21 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
     setRecordToDelete(record);
   };
 
-  const handleConfirmDeleteEdu = () => {
+  const handleConfirmDeleteEdu = async () => {
     if (!recordToDelete) return;
     const currentList = profile.education || [];
+    try {
+      await studyBuddyApi.deleteEducation(recordToDelete.id);
+    } catch (e) {
+      console.error("Error deleting education record:", e);
+    }
     const updatedList = currentList.filter((rec) => rec.id !== recordToDelete.id);
     setProfile({ ...profile, education: updatedList });
     setRecordToDelete(null);
   };
 
   // Study Space Handlers
-  const handleCreateGoal = (goalData: {
+  const handleCreateGoal = async (goalData: {
     title: string;
     subject: string;
     goal: string;
@@ -278,30 +230,46 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
     duration: string;
     learningStyle: string;
   }) => {
-    const newSpace: StudySpace = {
-      id: `space-${Date.now()}`,
-      title: goalData.title,
-      subject: goalData.subject || goalData.title,
-      goal: goalData.goal,
-      schedule: goalData.schedule,
-      duration: goalData.duration,
-      learningStyle: goalData.learningStyle,
-      partner: undefined,
-      sessionsCompleted: 0,
-      upcomingSessions: 0,
-      progressPercent: 0,
-      status: "partner_needed",
-    };
-
-    setSpaces((prev) => [newSpace, ...prev]);
+    try {
+      const createdSpace = await studyBuddyApi.createStudySpace(goalData);
+      setSpaces((prev) => [createdSpace, ...prev]);
+    } catch {
+      const fallbackSpace: StudySpace = {
+        id: `space-${Date.now()}`,
+        title: goalData.title,
+        subject: goalData.subject || goalData.title,
+        goal: goalData.goal,
+        schedule: goalData.schedule,
+        duration: goalData.duration,
+        learningStyle: goalData.learningStyle,
+        partner: undefined,
+        sessionsCompleted: 0,
+        upcomingSessions: 0,
+        progressPercent: 0,
+        status: "partner_needed",
+      };
+      setSpaces((prev) => [fallbackSpace, ...prev]);
+    }
     setIsAddGoalModalOpen(false);
   };
 
-  const handleAssignPartner = (partner: StudyPartner) => {
+  const handleAssignPartner = async (partner: StudyPartner) => {
     if (!activeSpaceForPartner) return;
+    const spaceId = activeSpaceForPartner.id;
+
+    try {
+      await studyBuddyApi.updateStudySpace(spaceId, {
+        partner_id: partner.id,
+        status: "active",
+        upcoming_sessions: 1,
+      });
+    } catch (e) {
+      console.error("Error saving assigned partner to backend:", e);
+    }
+
     setSpaces((prev) =>
       prev.map((s) =>
-        s.id === activeSpaceForPartner.id
+        s.id === spaceId
           ? {
               ...s,
               partner,
@@ -314,27 +282,42 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
     setActiveSpaceForPartner(null);
   };
 
-  const handleCompleteSession = (spaceId: string) => {
+  const handleCompleteSession = async (spaceId: string) => {
+    const space = spaces.find((s) => s.id === spaceId);
+    if (!space) return;
+
+    const newProgress = Math.min(100, space.progressPercent + 15);
+    const newSessionsCompleted = space.sessionsCompleted + 1;
+
+    try {
+      await studyBuddyApi.updateStudySpace(spaceId, {
+        sessions_completed: newSessionsCompleted,
+        progress_percent: newProgress,
+      });
+    } catch (e) {
+      console.error("Error updating session progress:", e);
+    }
+
     setSpaces((prev) =>
       prev.map((s) => {
         if (s.id === spaceId) {
-          const newProgress = Math.min(100, s.progressPercent + 15);
           return {
             ...s,
-            sessionsCompleted: s.sessionsCompleted + 1,
+            sessionsCompleted: newSessionsCompleted,
             progressPercent: newProgress,
           };
         }
         return s;
       })
     );
+
     if (selectedSpaceDetail && selectedSpaceDetail.id === spaceId) {
       setSelectedSpaceDetail((prev) =>
         prev
           ? {
               ...prev,
-              sessionsCompleted: prev.sessionsCompleted + 1,
-              progressPercent: Math.min(100, prev.progressPercent + 15),
+              sessionsCompleted: newSessionsCompleted,
+              progressPercent: newProgress,
             }
           : null
       );
@@ -421,7 +404,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
         {/* Welcome Banner */}
         <section className={styles.welcomeBanner}>
           <div className={styles.welcomeContent}>
-            <h1>Welcome back! 👋</h1>
+            <h1>Welcome back, {profile.name.split(" ")[0]}! 👋</h1>
             <p className={styles.welcomeSubtitle}>Your goals, your partners, your progress.</p>
             <p className={styles.welcomeDescription}>
               Your study journey, all in one place. Manage your study goals and find partners who fit each one.
@@ -469,23 +452,40 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
           </div>
 
           <div className={styles.spacesGrid}>
-            {spaces.map((space) => (
-              <StudySpaceCard
-                key={space.id}
-                space={space}
-                onOpen={(s) => setSelectedSpaceDetail(s)}
-                onFindPartner={(s) => setActiveSpaceForPartner(s)}
-              />
-            ))}
+            {spaces.length === 0 ? (
+              <div className={styles.emptyState}>
+                <div className={styles.emptyStateIcon}>🎯</div>
+                <h3 className={styles.emptyStateTitle}>No study goals yet</h3>
+                <p className={styles.emptyStateText}>
+                  Create your first study goal to find a partner and start learning together.
+                </p>
+                <button
+                  type="button"
+                  className={styles.addGoalBtn}
+                  onClick={() => setIsAddGoalModalOpen(true)}
+                >
+                  + Add your first study goal
+                </button>
+              </div>
+            ) : (
+              spaces.map((space) => (
+                <StudySpaceCard
+                  key={space.id}
+                  space={space}
+                  onOpen={(s) => setSelectedSpaceDetail(s)}
+                  onFindPartner={(s) => setActiveSpaceForPartner(s)}
+                />
+              ))
+            )}
           </div>
 
           <p className={styles.disclaimerNote}>
-            Conceptual UI with fictional names and example progress. Real information will come from the student's account and backend.
+            All study goals, partner collaborations, and progress sessions are saved to your account in real-time.
           </p>
         </section>
       </main>
 
-      {/* 3. MODALS (Extracted into clean DRY components) */}
+      {/* 3. MODALS */}
       <AddGoalModal
         isOpen={isAddGoalModalOpen}
         onClose={() => setIsAddGoalModalOpen(false)}
@@ -516,7 +516,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
       <FindPartnerModal
         isOpen={Boolean(activeSpaceForPartner)}
         space={activeSpaceForPartner}
-        partners={mockAvailablePartners}
+        partners={availablePartners}
         onClose={() => setActiveSpaceForPartner(null)}
         onConnect={handleAssignPartner}
       />

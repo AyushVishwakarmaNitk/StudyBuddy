@@ -4,9 +4,15 @@ import styles from "./LandingPage.module.css";
 
 interface LandingPageProps {
   onNavigateToAuth: (isSignUp?: boolean) => void;
+  sessionExpiredMessage?: string | null;
+  onDismissSessionExpired?: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToAuth }) => {
+const LandingPage: React.FC<LandingPageProps> = ({
+  onNavigateToAuth,
+  sessionExpiredMessage,
+  onDismissSessionExpired,
+}) => {
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
@@ -16,6 +22,65 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToAuth }) => {
 
   return (
     <div className={styles.landingWrapper}>
+      {sessionExpiredMessage && (
+        <div
+          style={{
+            background: "#fff2e8",
+            borderBottom: "1px solid #ffd591",
+            padding: "12px 24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            color: "#d4380d",
+            fontSize: "0.92rem",
+            fontWeight: 500,
+            zIndex: 1000,
+            position: "sticky",
+            top: 0,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span>⏳</span>
+            <span>{sessionExpiredMessage}</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <button
+              type="button"
+              onClick={() => onNavigateToAuth(false)}
+              style={{
+                background: "#e25822",
+                color: "#ffffff",
+                border: "none",
+                padding: "6px 16px",
+                borderRadius: "6px",
+                fontWeight: 600,
+                cursor: "pointer",
+                fontSize: "0.85rem",
+              }}
+            >
+              Login
+            </button>
+            {onDismissSessionExpired && (
+              <button
+                type="button"
+                onClick={onDismissSessionExpired}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#8c98a4",
+                  cursor: "pointer",
+                  fontSize: "1.2rem",
+                  lineHeight: 1,
+                  padding: "0 4px",
+                }}
+                aria-label="Dismiss message"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {/* 1. TOP NAVBAR */}
       <header className={styles.navbar}>
         <div className={styles.navContainer}>
