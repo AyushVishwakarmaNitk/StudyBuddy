@@ -25,6 +25,10 @@ DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 't')
 allowed_hosts_raw = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1')
 ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_raw.split(',') if h.strip()]
 
+# Inactivity Session Timeout - configurable via SESSION_TIMEOUT_SECONDS env var.
+# Default is 1800 seconds (30 minutes). Warning dialog fires 60 s before this.
+SESSION_TIMEOUT_SECONDS = int(os.getenv('SESSION_TIMEOUT_SECONDS', '1800'))
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
