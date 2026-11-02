@@ -22,6 +22,13 @@
   margin-bottom: 18px;
 }
 
+.cardHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
 .spaceSubjectBadge {
   display: inline-block;
   background: #fff1ed;
@@ -30,7 +37,29 @@
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 12px;
-  margin-bottom: 12px;
+}
+
+.deleteGoalBtn {
+  background: #fff8f8;
+  border: 1px solid #fecaca;
+  color: #ef4444;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.deleteGoalBtn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+  color: #b91c1c;
+  transform: translateY(-1px);
 }
 
 .spaceTitle {
@@ -145,4 +174,3 @@
   transform: translateY(-2px);
   box-shadow: 0 8px 22px rgba(255, 75, 43, 0.35);
 }
-

@@ -1,5 +1,5 @@
 import { apiFetch } from "./client";
-import type { EducationRecord, StudySpace, StudyPartner } from "../types/dashboard";
+import type { EducationRecord, StudySpace, StudyPartner, QuestionnaireData, QuestionnaireSubmitResult } from "../types/dashboard";
 
 export const studyBuddyApi = {
   // ==================== EDUCATION RECORDS ====================
@@ -84,18 +84,36 @@ export const studyBuddyApi = {
     });
   },
 
-  // ==================== PARTNERS ====================
+  // ==================== PARTNERS & QUESTIONNAIRE ====================
   async getAvailablePartners(): Promise<StudyPartner[]> {
     const data = await apiFetch<{ partners: any[] }>("/partners/");
-    return data.partners.map((p) => ({
-      id: String(p.id),
-      name: p.name || p.username,
-      avatar: p.avatar || undefined,
-      branch: p.branch || "General Studies",
-      year: p.year || 1,
-      compatibility: p.compatibility || 90,
-      bio: p.bio || "Dedicated learner looking to collaborate.",
-    }));
+    return data.partners.map(mapBackendPartnerToFrontend);
+  },
+
+  async submitQuestionnaire(payload: QuestionnaireData): Promise<QuestionnaireSubmitResult> {
+    const data = await apiFetch<any>("/questionnaire/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    return {
+      message: data.message,
+      questionnaire_id: data.questionnaire_id,
+      top_matches: (data.top_matches || []).map(mapBackendPartnerToFrontend),
+    };
+  },
+
+  async getLatestQuestionnaire(spaceId?: string | number): Promise<QuestionnaireData | null> {
+    const url = spaceId ? `/questionnaire/?space_id=${spaceId}` : "/questionnaire/";
+    const data = await apiFetch<{ questionnaire: any | null }>(url);
+    return data.questionnaire;
+  },
+
+  async getSpaceMatches(spaceId: string | number): Promise<{ requires_questionnaire: boolean; matches: StudyPartner[] }> {
+    const data = await apiFetch<any>(`/study-spaces/${spaceId}/matches/`);
+    return {
+      requires_questionnaire: Boolean(data.requires_questionnaire),
+      matches: (data.matches || []).map(mapBackendPartnerToFrontend),
+    };
   },
 };
 
@@ -140,6 +158,23 @@ function mapFrontendEduToBackend(f: Partial<EducationRecord>): any {
   };
 }
 
+function mapBackendPartnerToFrontend(p: any): StudyPartner {
+  return {
+    id: String(p.id),
+    name: p.name || p.username,
+    username: p.username,
+    avatar: p.avatar || undefined,
+    branch: p.branch || "General Studies",
+    year: p.year || 1,
+    compatibility: p.compatibility || 90,
+    bio: p.bio || "Dedicated learner looking to collaborate.",
+    matchReasons: p.match_reasons || [],
+    subjects: p.subjects || [],
+    availability: p.availability,
+    collaborationStyle: p.collaboration_style,
+  };
+}
+
 function mapBackendSpaceToFrontend(b: any): StudySpace {
   return {
     id: String(b.id),
@@ -149,21 +184,10 @@ function mapBackendSpaceToFrontend(b: any): StudySpace {
     schedule: b.schedule,
     duration: b.duration,
     learningStyle: b.learning_style,
-    partner: b.partner
-      ? {
-          id: String(b.partner.id),
-          name: b.partner.name || b.partner.username,
-          avatar: b.partner.avatar || undefined,
-          branch: b.partner.branch || "CSE",
-          year: b.partner.year || 3,
-          compatibility: b.partner.compatibility || 90,
-          bio: b.partner.bio || "",
-        }
-      : undefined,
+    partner: b.partner ? mapBackendPartnerToFrontend(b.partner) : undefined,
     sessionsCompleted: b.sessions_completed || 0,
     upcomingSessions: b.upcoming_sessions || 0,
     progressPercent: b.progress_percent || 0,
     status: b.status || "partner_needed",
   };
 }
-

@@ -129,6 +129,61 @@ class StudySpace(models.Model):
         return f"{self.title} ({self.owner.username})"
 
 
+class QuestionnaireResponse(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='questionnaire_responses')
+    study_space = models.ForeignKey(StudySpace, null=True, blank=True, on_delete=models.SET_NULL, related_name='questionnaire_responses')
+
+    # Section 1: Academic Interests & Subject Selection
+    subjects = models.JSONField(default=list, blank=True)
+    custom_subject = models.CharField(max_length=255, blank=True, default='')
+    topics = models.JSONField(default=list, blank=True)
+    custom_topics = models.TextField(blank=True, default='')
+
+    # Section 2: Subject Understanding & Knowledge Level
+    understanding_level = models.CharField(max_length=100, blank=True, default='')
+    problem_solving_comfort = models.CharField(max_length=150, blank=True, default='')
+    preferred_partner_level = models.CharField(max_length=150, blank=True, default='')
+
+    # Section 3: Study Routine & Availability
+    daily_study_hours = models.CharField(max_length=100, blank=True, default='')
+    preferred_study_time = models.CharField(max_length=100, blank=True, default='')
+    available_days = models.JSONField(default=list, blank=True)
+    schedule_flexibility = models.CharField(max_length=100, blank=True, default='')
+
+    # Section 4: Study Duration & Focus
+    session_duration = models.CharField(max_length=100, blank=True, default='')
+    session_structure = models.CharField(max_length=150, blank=True, default='')
+
+    # Section 5: Learning & Collaboration Preferences
+    learning_modes = models.JSONField(default=list, blank=True)
+    collaboration_type = models.CharField(max_length=150, blank=True, default='')
+    partner_quality = models.CharField(max_length=150, blank=True, default='')
+
+    # Section 6: Communication & Academic Goals
+    communication_channels = models.JSONField(default=list, blank=True)
+    primary_goal = models.CharField(max_length=150, blank=True, default='')
+    study_frequency = models.CharField(max_length=100, blank=True, default='')
+    expected_duration = models.CharField(max_length=100, blank=True, default='')
+
+    # Section 7: Consistency & Accountability
+    consistency_rating = models.CharField(max_length=100, blank=True, default='')
+    postpone_frequency = models.CharField(max_length=100, blank=True, default='')
+    tracking_preference = models.CharField(max_length=100, blank=True, default='')
+    accountability_importance = models.CharField(max_length=100, blank=True, default='')
+
+    # Survey feedback question
+    feedback_question = models.TextField(blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Questionnaire by {self.user.username} ({self.created_at.strftime('%Y-%m-%d')})"
+
+
 @receiver(post_save, sender=User)
 def create_or_update_student_profile(sender, instance, created, **kwargs):
     """Ensure a StudentProfile is automatically created whenever a User is created."""

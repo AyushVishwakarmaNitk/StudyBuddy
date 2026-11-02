@@ -23,6 +23,7 @@ import styles from "./DashboardPage.module.css";
 interface DashboardPageProps {
   onLogout: () => void;
   user?: AuthUser | null;
+  onFindPartnerForSpace?: (space: StudySpace) => void;
 }
 
 const defaultInitialProfile: UserProfile = {
@@ -43,7 +44,11 @@ const defaultInitialProfile: UserProfile = {
   },
 };
 
-const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
+const DashboardPage: React.FC<DashboardPageProps> = ({
+  onLogout,
+  user,
+  onFindPartnerForSpace,
+}) => {
   const [profile, setProfile] = useState<UserProfile>(() => {
     if (user) {
       const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username;
@@ -85,6 +90,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
   const [editingEduRecord, setEditingEduRecord] = useState<EducationRecord | null>(null);
   const [recordToDelete, setRecordToDelete] = useState<EducationRecord | null>(null);
 
+  // Study Goal Delete Confirmation
+  const [spaceToDelete, setSpaceToDelete] = useState<StudySpace | null>(null);
+
   // Load Real Data from Backend APIs on Mount
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -99,7 +107,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
           setProfile((prev) => ({ ...prev, education: educationRecords }));
         }
         // Always replace spaces with whatever the API returned (including empty [])
-        // so new users never see the hardcoded placeholder
         if (Array.isArray(studySpaces)) {
           setSpaces(studySpaces);
         }
@@ -251,6 +258,26 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
       setSpaces((prev) => [fallbackSpace, ...prev]);
     }
     setIsAddGoalModalOpen(false);
+  };
+
+  const handlePromptDeleteSpace = (space: StudySpace) => {
+    // Only allow deletion if the goal is not paired with a student
+    if (!space.partner) {
+      setSpaceToDelete(space);
+    }
+  };
+
+  const handleConfirmDeleteSpace = async () => {
+    if (!spaceToDelete) return;
+    try {
+      await studyBuddyApi.deleteStudySpace(spaceToDelete.id);
+      setSpaces((prev) => prev.filter((s) => s.id !== spaceToDelete.id));
+    } catch (err) {
+      console.error("Error deleting study goal:", err);
+      setSpaces((prev) => prev.filter((s) => s.id !== spaceToDelete.id));
+    } finally {
+      setSpaceToDelete(null);
+    }
   };
 
   const handleAssignPartner = async (partner: StudyPartner) => {
@@ -473,7 +500,14 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
                   key={space.id}
                   space={space}
                   onOpen={(s) => setSelectedSpaceDetail(s)}
-                  onFindPartner={(s) => setActiveSpaceForPartner(s)}
+                  onFindPartner={(s) => {
+                    if (onFindPartnerForSpace) {
+                      onFindPartnerForSpace(s);
+                    } else {
+                      setActiveSpaceForPartner(s);
+                    }
+                  }}
+                  onDelete={(s) => handlePromptDeleteSpace(s)}
                 />
               ))
             )}
@@ -528,6 +562,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
         onCompleteSession={handleCompleteSession}
       />
 
+      {/* Confirm Delete Education Record */}
       <ConfirmDialog
         isOpen={Boolean(recordToDelete)}
         title="Delete Education Record?"
@@ -541,6 +576,22 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout, user }) => {
         isDanger={true}
         onConfirm={handleConfirmDeleteEdu}
         onCancel={() => setRecordToDelete(null)}
+      />
+
+      {/* Confirm Remove Unpaired Study Goal */}
+      <ConfirmDialog
+        isOpen={Boolean(spaceToDelete)}
+        title="Remove Study Goal?"
+        message={
+          spaceToDelete
+            ? `Are you sure you want to remove the study goal "${spaceToDelete.title}"? This cannot be undone.`
+            : ""
+        }
+        confirmText="Yes, Remove Goal"
+        cancelText="Cancel"
+        isDanger={true}
+        onConfirm={handleConfirmDeleteSpace}
+        onCancel={() => setSpaceToDelete(null)}
       />
     </div>
   );

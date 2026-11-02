@@ -3,16 +3,21 @@ import LandingPage from "./pages/LandingPage";
 import SignUpLoginPage from "./pages/SignUpLoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProfileCompletionPage from "./pages/ProfileCompletionPage";
+import QuestionnairePage from "./pages/QuestionnairePage";
 import SessionWarningDialog from "./components/common/SessionWarningDialog";
 import { authApi } from "./api/auth";
 import type { AuthUser } from "./api/auth";
+import type { StudySpace } from "./types/dashboard";
 import { getAccessToken } from "./api/client";
 import { useSessionTimeout } from "./hooks/useSessionTimeout";
 
 function App() {
-  const [currentView, setCurrentView] = useState<"landing" | "auth" | "profile-completion" | "dashboard">("landing");
+  const [currentView, setCurrentView] = useState<
+    "landing" | "auth" | "profile-completion" | "dashboard" | "questionnaire"
+  >("landing");
   const [authIsSignUp, setAuthIsSignUp] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [questionnaireSpace, setQuestionnaireSpace] = useState<StudySpace | null>(null);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(null);
 
@@ -24,14 +29,23 @@ function App() {
     handleStayLoggedIn,
     handleDialogLogout,
   } = useSessionTimeout({
-    isAuthenticated: Boolean(currentUser && (currentView === "dashboard" || currentView === "profile-completion")),
+    isAuthenticated: Boolean(
+      currentUser &&
+        (currentView === "dashboard" ||
+          currentView === "profile-completion" ||
+          currentView === "questionnaire")
+    ),
     onSessionExpired: () => {
       setCurrentUser(null);
-      setSessionExpiredMessage("Your session expired because of inactivity. Please log in again to continue.");
+      setQuestionnaireSpace(null);
+      setSessionExpiredMessage(
+        "Your session expired because of inactivity. Please log in again to continue."
+      );
       setCurrentView("landing");
     },
     onLogout: () => {
       setCurrentUser(null);
+      setQuestionnaireSpace(null);
       setSessionExpiredMessage(null);
       setCurrentView("landing");
     },
@@ -93,6 +107,7 @@ function App() {
   const handleLogout = async () => {
     await authApi.logout();
     setCurrentUser(null);
+    setQuestionnaireSpace(null);
     setSessionExpiredMessage(null);
     setCurrentView("landing");
   };
@@ -130,7 +145,29 @@ function App() {
 
       {/* Main View Router */}
       {currentView === "dashboard" && (
-        <DashboardPage user={currentUser} onLogout={handleLogout} />
+        <DashboardPage
+          user={currentUser}
+          onLogout={handleLogout}
+          onFindPartnerForSpace={(space) => {
+            setQuestionnaireSpace(space);
+            setCurrentView("questionnaire");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        />
+      )}
+
+      {currentView === "questionnaire" && (
+        <QuestionnairePage
+          space={questionnaireSpace}
+          onBack={() => {
+            setQuestionnaireSpace(null);
+            setCurrentView("dashboard");
+          }}
+          onPartnerConnected={() => {
+            setQuestionnaireSpace(null);
+            setCurrentView("dashboard");
+          }}
+        />
       )}
 
       {currentView === "profile-completion" && (

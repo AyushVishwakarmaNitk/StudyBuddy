@@ -1,11 +1,16 @@
 export interface StudyPartner {
   id: string;
   name: string;
+  username?: string;
   avatar?: string;
   branch: string;
   year: number;
   compatibility: number;
   bio: string;
+  matchReasons?: string[];
+  subjects?: string[];
+  availability?: string;
+  collaborationStyle?: string;
 }
 
 export interface StudySpace {
@@ -64,4 +69,47 @@ export interface UserProfile {
     sessionDuration: string;
     collaborationStyle: string;
   };
+}
+
+export interface QuestionnaireData {
+  study_space_id?: string | number | null;
+  // Section 1: Academic Interests & Subject Selection
+  subjects: string[];
+  custom_subject?: string;
+  topics: string[];
+  custom_topics?: string;
+  // Section 2: Subject Understanding & Knowledge Level
+  understanding_level: string;
+  problem_solving_comfort: string;
+  preferred_partner_level: string;
+  // Section 3: Study Routine & Availability
+  daily_study_hours: string;
+  preferred_study_time: string;
+  available_days: string[];
+  schedule_flexibility: string;
+  // Section 4: Study Duration & Focus
+  session_duration: string;
+  session_structure: string;
+  // Section 5: Learning & Collaboration Preferences
+  learning_modes: string[];
+  collaboration_type: string;
+  partner_quality: string;
+  // Section 6: Communication & Academic Goals
+  communication_channels: string[];
+  primary_goal: string;
+  study_frequency: string;
+  expected_duration: string;
+  // Section 7: Consistency & Accountability
+  consistency_rating: string;
+  postpone_frequency: string;
+  tracking_preference: string;
+  accountability_importance: string;
+  // Survey feedback question
+  feedback_question?: string;
+}
+
+export interface QuestionnaireSubmitResult {
+  message: string;
+  questionnaire_id: number;
+  top_matches: StudyPartner[];
 }

@@ -13,6 +13,8 @@ from .views import (
     StudySpaceListCreateView,
     StudySpaceDetailView,
     StudyPartnerListView,
+    QuestionnaireSubmitAndMatchView,
+    StudySpaceMatchesView,
 )
 
 urlpatterns = [
@@ -33,7 +35,9 @@ urlpatterns = [
     # Study Spaces CRUD
     path('study-spaces/', StudySpaceListCreateView.as_view(), name='study_spaces_list_create'),
     path('study-spaces/<int:pk>/', StudySpaceDetailView.as_view(), name='study_space_detail'),
+    path('study-spaces/<int:pk>/matches/', StudySpaceMatchesView.as_view(), name='study_space_matches'),
 
-    # Partners Discovery
+    # Questionnaire & Partner Matching Endpoints
+    path('questionnaire/', QuestionnaireSubmitAndMatchView.as_view(), name='questionnaire_submit_and_match'),
     path('partners/', StudyPartnerListView.as_view(), name='partners_list'),
 ]

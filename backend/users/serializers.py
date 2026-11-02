@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.validators import validate_email
-from .models import StudentProfile, EducationRecord, StudySpace
+from .models import StudentProfile, EducationRecord, StudySpace, QuestionnaireResponse
 
 
 class EducationRecordSerializer(serializers.ModelSerializer):
@@ -182,7 +182,6 @@ class StudyPartnerSerializer(serializers.ModelSerializer):
         return full_name if full_name else obj.username
 
     def get_compatibility(self, obj):
-        # Calculate algorithmic compatibility score based on academic year and branch
         return 92
 
 
@@ -205,3 +204,29 @@ class StudySpaceSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class QuestionnaireResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuestionnaireResponse
+        fields = [
+            'id', 'user', 'study_space',
+            # Section 1
+            'subjects', 'custom_subject', 'topics', 'custom_topics',
+            # Section 2
+            'understanding_level', 'problem_solving_comfort', 'preferred_partner_level',
+            # Section 3
+            'daily_study_hours', 'preferred_study_time', 'available_days', 'schedule_flexibility',
+            # Section 4
+            'session_duration', 'session_structure',
+            # Section 5
+            'learning_modes', 'collaboration_type', 'partner_quality',
+            # Section 6
+            'communication_channels', 'primary_goal', 'study_frequency', 'expected_duration',
+            # Section 7
+            'consistency_rating', 'postpone_frequency', 'tracking_preference', 'accountability_importance',
+            # Survey feedback
+            'feedback_question',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
