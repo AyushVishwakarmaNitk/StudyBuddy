@@ -47,14 +47,14 @@ export const ProfileCompletionPage: React.FC<ProfileCompletionPageProps> = ({
   const [eduStream, setEduStream] = useState<string>("");
   const [eduDegree, setEduDegree] = useState<string>("B.Tech");
   const [eduSpecialization, setEduSpecialization] = useState<string>("Computer Science");
-  const [eduPassingYear, setEduPassingYear] = useState<string>("");
+  const [eduPassingYear] = useState<string>("");
   const [eduStartYear, setEduStartYear] = useState<string>("2022");
   const [eduCompletionYear, setEduCompletionYear] = useState<string>("2026");
-  const [eduIsCurrentlyStudying, setEduIsCurrentlyStudying] = useState<boolean>(true);
+  const [eduIsCurrentlyStudying] = useState<boolean>(true);
   const [eduGradingType, setEduGradingType] = useState<"percentage" | "cgpa">("cgpa");
   const [eduPercentage, setEduPercentage] = useState<string>("");
   const [eduCgpa, setEduCgpa] = useState<string>("8.5");
-  const [eduCgpaScale, setEduCgpaScale] = useState<string>("10");
+  const [eduCgpaScale] = useState<string>("10");
 
   // Calculate actual progress based on valid required fields
   const completionProgress = useMemo(() => {

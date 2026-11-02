@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import StudentProfile, EducationRecord, StudySpace
+from .models import StudentProfile, EducationRecord, StudySpace, QuestionnaireResponse
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -17,7 +17,9 @@ from .serializers import (
     EducationRecordSerializer,
     StudySpaceSerializer,
     StudyPartnerSerializer,
+    QuestionnaireResponseSerializer,
 )
+from .matching import calculate_partner_matches
 
 
 def get_tokens_for_user(user):
@@ -402,64 +404,156 @@ class StudyPartnerListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # Exclude the current student
         candidates = User.objects.exclude(id=request.user.id).select_related('profile')[:20]
 
-        # If database has no other users yet, seed realistic mock peers for a rich experience
-        if not candidates.exists():
-            default_candidates = [
-                {
-                    'id': 'p-priya',
-                    'name': 'Priya Sharma',
-                    'username': 'priya_s',
-                    'branch': 'CSE',
-                    'year': 3,
-                    'compatibility': 96,
-                    'bio': 'Focusing on Full-Stack React & Node.js projects with daily Pomodoro sessions.',
-                    'avatar': ''
-                },
-                {
-                    'id': 'p-rohan',
-                    'name': 'Rohan Verma',
-                    'username': 'rohan_v',
-                    'branch': 'IT',
-                    'year': 3,
-                    'compatibility': 89,
-                    'bio': 'Looking for a dedicated coding accountability partner for DBMS & System Design.',
-                    'avatar': ''
-                },
-                {
-                    'id': 'p-sneha',
-                    'name': 'Sneha Patel',
-                    'username': 'sneha_p',
-                    'branch': 'ECE',
-                    'year': 2,
-                    'compatibility': 86,
-                    'bio': 'Studying Web Development fundamentals, algorithms, and Git collaboration.',
-                    'avatar': ''
-                }
-            ]
-            return Response({'partners': default_candidates}, status=status.HTTP_200_OK)
+        # Check if the user has filled a questionnaire to provide personalized scoring
+        user_q = QuestionnaireResponse.objects.filter(user=request.user).order_by('-created_at').first()
+        if user_q:
+            matches = calculate_partner_matches(user_q, request.user, limit=10)
+            return Response({'partners': matches}, status=status.HTTP_200_OK)
 
         serializer = StudyPartnerSerializer(candidates, many=True)
         return Response({'partners': serializer.data}, status=status.HTTP_200_OK)
 
 
+class QuestionnaireSubmitAndMatchView(APIView):
+    """
+    Endpoint to submit the 7-section Study Partner questionnaire,
+    save responses to PostgreSQL / SQLite, update the student's study preferences,
+    and return the top 5 compatible study partner matches with algorithmic reasoning.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = request.data.copy()
+        space_id = data.get('study_space_id')
+        study_space = None
+        if space_id:
+            try:
+                study_space = StudySpace.objects.get(id=space_id, owner=request.user)
+            except StudySpace.DoesNotExist:
+                study_space = None
+
+        # Create or update QuestionnaireResponse
+        questionnaire = QuestionnaireResponse.objects.create(
+            user=request.user,
+            study_space=study_space,
+            # Section 1
+            subjects=data.get('subjects', []),
+            custom_subject=data.get('custom_subject', ''),
+            topics=data.get('topics', []),
+            custom_topics=data.get('custom_topics', ''),
+            # Section 2
+            understanding_level=data.get('understanding_level', ''),
+            problem_solving_comfort=data.get('problem_solving_comfort', ''),
+            preferred_partner_level=data.get('preferred_partner_level', ''),
+            # Section 3
+            daily_study_hours=data.get('daily_study_hours', ''),
+            preferred_study_time=data.get('preferred_study_time', ''),
+            available_days=data.get('available_days', []),
+            schedule_flexibility=data.get('schedule_flexibility', ''),
+            # Section 4
+            session_duration=data.get('session_duration', ''),
+            session_structure=data.get('session_structure', ''),
+            # Section 5
+            learning_modes=data.get('learning_modes', []),
+            collaboration_type=data.get('collaboration_type', ''),
+            partner_quality=data.get('partner_quality', ''),
+            # Section 6
+            communication_channels=data.get('communication_channels', []),
+            primary_goal=data.get('primary_goal', ''),
+            study_frequency=data.get('study_frequency', ''),
+            expected_duration=data.get('expected_duration', ''),
+            # Section 7
+            consistency_rating=data.get('consistency_rating', ''),
+            postpone_frequency=data.get('postpone_frequency', ''),
+            tracking_preference=data.get('tracking_preference', ''),
+            accountability_importance=data.get('accountability_importance', ''),
+            # Survey feedback question
+            feedback_question=data.get('feedback_question', ''),
+        )
+
+        # Sync profile study preferences from questionnaire
+        profile, _ = StudentProfile.objects.get_or_create(user=request.user)
+        if questionnaire.subjects:
+            profile.subjects = ", ".join(questionnaire.subjects)
+        if questionnaire.preferred_study_time:
+            profile.availability = questionnaire.preferred_study_time
+        if questionnaire.session_duration:
+            profile.session_duration = questionnaire.session_duration
+        if questionnaire.session_structure:
+            profile.collaboration_style = questionnaire.session_structure
+        profile.save()
+
+        # Run multi-dimensional matching algorithm
+        top_matches = calculate_partner_matches(questionnaire, request.user, limit=5)
+
+        return Response(
+            {
+                'message': 'Questionnaire analyzed successfully.',
+                'questionnaire_id': questionnaire.id,
+                'top_matches': top_matches,
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+    def get(self, request):
+        """Retrieve student's latest questionnaire response."""
+        space_id = request.query_params.get('space_id')
+        query = QuestionnaireResponse.objects.filter(user=request.user)
+        if space_id:
+            query = query.filter(study_space_id=space_id)
+
+        latest_q = query.order_by('-created_at').first()
+        if not latest_q:
+            return Response({'questionnaire': None}, status=status.HTTP_200_OK)
+
+        serializer = QuestionnaireResponseSerializer(latest_q)
+        return Response({'questionnaire': serializer.data}, status=status.HTTP_200_OK)
+
+
+class StudySpaceMatchesView(APIView):
+    """
+    Endpoint to retrieve the top 5 matched partners for a specific Study Space.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            space = StudySpace.objects.get(pk=pk, owner=request.user)
+        except StudySpace.DoesNotExist:
+            return Response({'error': 'Study space not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check for space-specific questionnaire, fallback to user's latest questionnaire
+        target_q = QuestionnaireResponse.objects.filter(user=request.user, study_space=space).order_by('-created_at').first()
+        if not target_q:
+            target_q = QuestionnaireResponse.objects.filter(user=request.user).order_by('-created_at').first()
+
+        if not target_q:
+            # If no questionnaire exists yet, return empty list with flag indicating questionnaire required
+            return Response(
+                {
+                    'requires_questionnaire': True,
+                    'matches': [],
+                    'message': 'Please complete the compatibility questionnaire to discover matching study partners.'
+                },
+                status=status.HTTP_200_OK
+            )
+
+        matches = calculate_partner_matches(target_q, request.user, limit=5)
+        return Response(
+            {
+                'requires_questionnaire': False,
+                'matches': matches,
+                'questionnaire_id': target_q.id
+            },
+            status=status.HTTP_200_OK
+        )
+
+
 class SessionExtendView(APIView):
     """
     Session Inactivity Extension Endpoint.
-
-    The JWT access token is the real authentication gate — IsAuthenticated handles
-    that. If the token is valid and the user clicks "Stay Logged In", we always
-    extend the server-side last_activity timestamp unconditionally.
-
-    Why not check last_activity here?
-    - The frontend warning dialog already fires BEFORE the inactivity window expires,
-      giving the user time to act. By the time they click, elapsed time may exceed
-      the warning threshold but the JWT is still valid (1-day lifetime).
-    - A redundant server-side inactivity check at this point would reject legitimate
-      extension attempts and force unnecessary logouts.
-    - Security is maintained by the JWT expiry (ACCESS_TOKEN_LIFETIME = 1 day).
     """
     permission_classes = [IsAuthenticated]
 
@@ -467,7 +561,6 @@ class SessionExtendView(APIView):
         user = request.user
         profile, _ = StudentProfile.objects.get_or_create(user=user)
 
-        # Always extend: refresh server-side activity so future checks are accurate.
         now = timezone.now()
         profile.last_activity = now
         profile.save(update_fields=['last_activity'])
@@ -498,7 +591,6 @@ class LogoutView(APIView):
                 token = RefreshToken(refresh_token)
                 token.blacklist()
             except Exception:
-                # Token may already be expired or blacklisting not active
                 pass
 
         return Response({'message': 'Logged out successfully.'}, status=status.HTTP_200_OK)

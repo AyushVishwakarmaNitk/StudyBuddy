@@ -253,3 +253,100 @@ Frontend will be live at: `http://localhost:5173`
 - **Django Unit Tests:** 6/6 tests passed (`test_register_user`, `test_register_password_mismatch`, `test_login_with_username`, `test_login_with_email`, `test_login_invalid_password`, `test_current_user_me_endpoint`).
 - **TypeScript & Vite Build:** `tsc -b && vite build` completed with 0 errors (`dist` generated).
 
+
+---
+
+## 9. AI Study Partner Compatibility Questionnaire & Multi-Dimensional Matching Engine
+
+### A. Purpose & User Journey
+When a student creates or views a study goal (Study Space) where `status === "partner_needed"`, clicking **"Find a study partner 🚀"** triggers the 7-section Compatibility Questionnaire instead of displaying arbitrary dummy partners.
+
+```
+[Study Space Card] ──► Click "Find a study partner"
+                              │
+                              ▼
+        ┌──────────────────────────────────────────────┐
+        │   7-Section Compatibility Questionnaire     │
+        │   (Progress Bar: 14% -> 28% -> ... -> 100%)  │
+        │                                              │
+        │  1. Academic Interests & Dynamic Topics      │
+        │  2. Subject Understanding & Knowledge Level  │
+        │  3. Daily Routine & Weekly Availability      │
+        │  4. Session Duration & Structuring Rhythm    │
+        │  5. Learning Style & Collaboration Fit       │
+        │  6. Communication Channels & Primary Goals   │
+        │  7. Consistency, Accountability & Survey Box │
+        └──────────────────────┬───────────────────────┘
+                               │ POST /api/questionnaire/
+                               ▼
+        ┌──────────────────────────────────────────────┐
+        │   Multi-Factor Compatibility Engine (Django) │
+        │   - Subject & Topic Jaccard Sim (25%)        │
+        │   - Knowledge Level Synergy (15%)            │
+        │   - Schedule & Time Overlap (20%)            │
+        │   - Duration & Rhythm Match (15%)            │
+        │   - Communication & Collaboration Fit (15%)  │
+        │   - Commitment & Accountability Align (10%)  │
+        └──────────────────────┬───────────────────────┘
+                               │ Returns Top 5 Best Matches
+                               ▼
+        ┌──────────────────────────────────────────────┐
+        │   Top 5 Best Matches UI Display              │
+        │   - Compatibility Score (% Badge)            │
+        │   - Specific "Why You Match" tags (✓)        │
+        │   - Real Student Profile Details             │
+        │   - "Connect as Study Partner" Action        │
+        └──────────────────────┬───────────────────────┘
+                               │ PUT /api/study-spaces/<id>/
+                               ▼
+        ┌──────────────────────────────────────────────┐
+        │   Activated Study Space Card in Dashboard    │
+        │   - Status: Active                           │
+        │   - Assigned Peer with real DB Foreign Key   │
+        │   - Real-time Progress & Session Tracking    │
+        └──────────────────────────────────────────────┘
+```
+
+### B. Questionnaire Sections & Questions
+1. **Section 1: Academic Interests & Subject Selection**
+   - Q1: Subject(s) to study with partner (Multi-select from 11 academic disciplines + custom subject).
+   - Q2: Specific topics within selected subjects (Dynamically populated from subject catalogs + custom topic input).
+2. **Section 2: Subject Understanding & Knowledge Level**
+   - Q3: Current understanding rating (Beginner to Expert).
+   - Q4: Problem-solving comfort level (Need guidance to explain complex problems).
+   - Q5: Preferred partner knowledge level (Peer level, advanced guide, teach-and-learn).
+3. **Section 3: Study Routine & Availability**
+   - Q6: Daily study hours.
+   - Q7: Most comfortable study time of day.
+   - Q8: Days of the week available (Monday through Sunday) + Schedule flexibility level.
+4. **Section 4: Study Duration & Focus**
+   - Q9: Preferred session duration (15m to 3h+).
+   - Q10: Structuring format (Pomodoro 25/5, Short breaks, Long deep work, Flexible).
+5. **Section 5: Learning & Collaboration Preferences**
+   - Q11: Learning style (Visual, Reading, Listening, Practical, Group discussions).
+   - Q12: Collaboration type (Solving problems, Teaching, Concept discussion, Parallel).
+   - Q13: Preferred partner temperament (Disciplined, Friendly, Competitive, Supportive).
+6. **Section 6: Communication & Academic Goals**
+   - Q14: Communication channels (Text, Voice calls, Video calls, In-person, Shared docs).
+   - Q15: Primary academic goal (Exam prep, Placement prep, Skill building, Projects).
+   - Q16: Weekly frequency and expected partnership duration.
+7. **Section 7: Consistency & Accountability + Student Feedback**
+   - Q17: Study consistency rating.
+   - Q18: Session postpone frequency.
+   - Q19: Progress tracking preference.
+   - Q20: Importance of commitment and accountability.
+   - **Feedback question**: User-submitted suggestion for improving future matching surveys.
+
+### C. Database Model: `QuestionnaireResponse`
+Stored in `backend/users/models.py` and persisted in PostgreSQL / SQLite:
+- `user`: Foreign key to `auth_user`.
+- `study_space`: Foreign key to `users_studyspace` (optional linkage).
+- All 20 question fields structured with native `JSONField` and indexed foreign keys.
+- `feedback_question`: User feedback stored for system evaluation.
+- `created_at`, `updated_at`: Timestamps.
+
+### D. End-to-End API Endpoints
+- `POST /api/questionnaire/`: Saves questionnaire response, syncs `StudentProfile` preferences, executes `calculate_partner_matches`, and returns the Top 5 compatible peers.
+- `GET /api/questionnaire/?space_id=<id>`: Retrieves latest questionnaire for student/space.
+- `GET /api/study-spaces/<id>/matches/`: Fetches ranked partner recommendations for a space.
+- `PUT /api/study-spaces/<id>/`: Assigns the chosen peer (`partner_id`), marks the space as `active`, and schedules the first upcoming session.

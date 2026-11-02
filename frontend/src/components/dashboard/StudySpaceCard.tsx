@@ -6,19 +6,38 @@ interface StudySpaceCardProps {
   space: StudySpace;
   onOpen: (space: StudySpace) => void;
   onFindPartner: (space: StudySpace) => void;
+  onDelete?: (space: StudySpace) => void;
 }
 
 export const StudySpaceCard: React.FC<StudySpaceCardProps> = ({
   space,
   onOpen,
   onFindPartner,
+  onDelete,
 }) => {
   const hasPartner = space.partner !== undefined;
 
   return (
     <div className={styles.spaceCard}>
       <div className={styles.spaceCardTop}>
-        <span className={styles.spaceSubjectBadge}>{space.subject}</span>
+        <div className={styles.cardHeaderRow}>
+          <span className={styles.spaceSubjectBadge}>{space.subject}</span>
+          {!hasPartner && onDelete && (
+            <button
+              type="button"
+              className={styles.deleteGoalBtn}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(space);
+              }}
+              title="Remove this study goal"
+              aria-label="Remove study goal"
+            >
+              🗑️ Remove
+            </button>
+          )}
+        </div>
+
         <h3 className={styles.spaceTitle}>{space.title}</h3>
 
         <div className={styles.spacePartnerRow}>
@@ -82,4 +101,3 @@ export const StudySpaceCard: React.FC<StudySpaceCardProps> = ({
 };
 
 export default StudySpaceCard;
-
