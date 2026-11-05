@@ -1,10 +1,14 @@
+from unittest.mock import patch, MagicMock
+import io
+import json
 from datetime import timedelta
 from django.utils import timezone
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from rest_framework import status
-from .models import EducationRecord, StudySpace
+from .models import EducationRecord, StudySpace, StudentProfile
+from .google_auth import verify_google_id_token
 
 
 class AuthAPITests(TestCase):
@@ -19,6 +23,7 @@ class AuthAPITests(TestCase):
         self.education_url = '/api/education/'
         self.study_spaces_url = '/api/study-spaces/'
         self.partners_url = '/api/partners/'
+        self.google_auth_url = '/api/auth/google/'
 
     def test_user_registration_success(self):
         data = {
@@ -253,3 +258,179 @@ class AuthAPITests(TestCase):
         # 2. Logout
         logout_res = self.client.post(self.logout_url, {'refresh': refresh_token}, format='json')
         self.assertEqual(logout_res.status_code, status.HTTP_200_OK)
+
+
+class GoogleAuthTests(TestCase):
+    """
+    Test suite for Google OAuth 2.0 ID token authentication.
+    Verifies secure token validation, account find/creation, JWT issuance,
+    inactive account handling, and error conditions.
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        self.google_auth_url = '/api/auth/google/'
+        self.me_url = '/api/auth/me/'
+
+    def test_google_auth_missing_token(self):
+        """Request without an id_token or credential returns 400 Bad Request."""
+        res = self.client.post(self.google_auth_url, {}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', res.data)
+        self.assertEqual(res.data['error'], 'Google ID token is required.')
+
+    @patch('users.views.verify_google_id_token')
+    def test_google_auth_invalid_token_error(self, mock_verify):
+        """Invalid or expired Google token returns 400 with a descriptive error."""
+        mock_verify.side_effect = ValueError('Invalid or expired Google token: Token expired')
+        res = self.client.post(self.google_auth_url, {'id_token': 'expired-jwt-token'}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Invalid or expired Google token', res.data['error'])
+
+    @patch('users.views.verify_google_id_token')
+    def test_google_auth_audience_mismatch_error(self, mock_verify):
+        """Token with mismatched client ID audience returns 400."""
+        mock_verify.side_effect = ValueError('Google token audience mismatch. The token was issued for a different client.')
+        res = self.client.post(self.google_auth_url, {'id_token': 'mismatched-aud-token'}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('audience mismatch', res.data['error'])
+
+    @patch('users.views.verify_google_id_token')
+    def test_google_auth_unverified_email_error(self, mock_verify):
+        """Google account without verified email is rejected with 400."""
+        mock_verify.side_effect = ValueError('Google account email address is not verified.')
+        res = self.client.post(self.google_auth_url, {'id_token': 'unverified-email-token'}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('not verified', res.data['error'])
+
+    @patch('users.views.verify_google_id_token')
+    def test_google_auth_new_user_creation(self, mock_verify):
+        """New user signing in with Google is created, given tokens, and assigned profile."""
+        mock_verify.return_value = {
+            'email': 'newstudent@university.edu',
+            'sub': 'google-uid-1001',
+            'name': 'Taylor Swift',
+            'given_name': 'Taylor',
+            'family_name': 'Swift',
+            'picture': 'https://lh3.googleusercontent.com/avatar_ts.jpg',
+        }
+
+        res = self.client.post(self.google_auth_url, {'id_token': 'valid-google-id-token'}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertIn('tokens', res.data)
+        self.assertIn('access', res.data['tokens'])
+        self.assertIn('refresh', res.data['tokens'])
+        self.assertEqual(res.data['user']['email'], 'newstudent@university.edu')
+        self.assertTrue(res.data['requires_profile_completion'])
+
+        # Verify DB records
+        user = User.objects.get(email='newstudent@university.edu')
+        self.assertEqual(user.first_name, 'Taylor')
+        self.assertEqual(user.last_name, 'Swift')
+        self.assertFalse(user.has_usable_password())
+        self.assertTrue(hasattr(user, 'profile'))
+        self.assertEqual(user.profile.avatar_url, 'https://lh3.googleusercontent.com/avatar_ts.jpg')
+
+    @patch('users.views.verify_google_id_token')
+    def test_google_auth_existing_user_linking(self, mock_verify):
+        """Existing student signs in with Google without creating duplicate account or breaking password login."""
+        existing_user = User.objects.create_user(
+            username='existinglearner',
+            email='learner@university.edu',
+            password='OriginalPassword123!',
+            first_name='Existing',
+            last_name='Learner',
+        )
+
+        mock_verify.return_value = {
+            'email': 'learner@university.edu',
+            'sub': 'google-uid-2002',
+            'name': 'Existing Learner',
+            'given_name': 'Existing',
+            'family_name': 'Learner',
+            'picture': 'https://lh3.googleusercontent.com/updated_pic.png',
+        }
+
+        res = self.client.post(self.google_auth_url, {'id_token': 'valid-google-token'}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn('tokens', res.data)
+        self.assertEqual(res.data['user']['id'], existing_user.id)
+        self.assertEqual(res.data['user']['email'], 'learner@university.edu')
+
+        # Ensure no duplicate user was created
+        self.assertEqual(User.objects.filter(email='learner@university.edu').count(), 1)
+
+        # Ensure original password login still works
+        self.assertTrue(existing_user.check_password('OriginalPassword123!'))
+
+    @patch('users.views.verify_google_id_token')
+    def test_google_auth_inactive_account_rejected(self, mock_verify):
+        """Inactive user account signing in with Google is rejected with 401."""
+        inactive_user = User.objects.create_user(
+            username='inactivelearner',
+            email='inactive@university.edu',
+            password='Password123!',
+        )
+        inactive_user.is_active = False
+        inactive_user.save()
+
+        mock_verify.return_value = {
+            'email': 'inactive@university.edu',
+            'sub': 'google-uid-inactive',
+            'name': 'Inactive User',
+            'given_name': 'Inactive',
+            'family_name': 'User',
+            'picture': '',
+        }
+
+        res = self.client.post(self.google_auth_url, {'id_token': 'valid-token'}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn('inactive', res.data['error'])
+
+    @patch('users.views.verify_google_id_token')
+    def test_google_auth_jwt_grants_access_to_protected_api(self, mock_verify):
+        """Tokens issued from Google sign-in successfully authorize protected endpoints."""
+        mock_verify.return_value = {
+            'email': 'protected@university.edu',
+            'sub': 'google-uid-protected',
+            'name': 'Protected Student',
+            'given_name': 'Protected',
+            'family_name': 'Student',
+            'picture': '',
+        }
+
+        res = self.client.post(self.google_auth_url, {'id_token': 'valid-token'}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        access_token = res.data['tokens']['access']
+
+        # Access protected CurrentUserView (/api/auth/me/)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access_token}')
+        me_res = self.client.get(self.me_url)
+        self.assertEqual(me_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(me_res.data['user']['email'], 'protected@university.edu')
+
+    @patch('urllib.request.urlopen')
+    def test_verify_google_id_token_unit_success(self, mock_urlopen):
+        """Unit test for verify_google_id_token with simulated Google tokeninfo response."""
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_payload = {
+            'iss': 'https://accounts.google.com',
+            'aud': 'expected-client-id.apps.googleusercontent.com',
+            'sub': 'sub-123456',
+            'email': 'testuser@gmail.com',
+            'email_verified': 'true',
+            'name': 'Test User',
+            'given_name': 'Test',
+            'family_name': 'User',
+            'picture': 'https://lh3.googleusercontent.com/pic.jpg',
+        }
+        mock_response.read.return_value = json.dumps(mock_payload).encode('utf-8')
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+
+        data = verify_google_id_token('simulated-token', expected_client_id='expected-client-id.apps.googleusercontent.com')
+        self.assertEqual(data['email'], 'testuser@gmail.com')
+        self.assertEqual(data['given_name'], 'Test')
+        self.assertEqual(data['family_name'], 'User')
+        self.assertEqual(data['picture'], 'https://lh3.googleusercontent.com/pic.jpg')
+

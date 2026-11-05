@@ -110,6 +110,22 @@ export const authApi = {
   },
 
   /**
+   * Authenticate student using verified Google OAuth ID token
+   */
+  async googleLogin(idToken: string): Promise<AuthResponse> {
+    const data = await apiFetch<AuthResponse>("/auth/google/", {
+      method: "POST",
+      body: JSON.stringify({ id_token: idToken }),
+    });
+
+    if (data.tokens) {
+      setTokens(data.tokens);
+    }
+
+    return data;
+  },
+
+  /**
    * Fetch currently authenticated student profile using JWT Bearer token
    */
   async getCurrentUser(): Promise<{ user: AuthUser }> {

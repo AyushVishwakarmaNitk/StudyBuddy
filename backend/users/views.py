@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 from django.utils import timezone
 from django.conf import settings
@@ -9,6 +10,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import StudentProfile, EducationRecord, StudySpace, QuestionnaireResponse
+from .google_auth import verify_google_id_token
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -118,6 +120,112 @@ class LoginView(APIView):
                 'details': errors,
             },
             status=status.HTTP_401_UNAUTHORIZED
+        )
+
+
+class GoogleAuthView(APIView):
+    """
+    Public endpoint for authenticating users via Google OAuth 2.0 ID token.
+    Validates Google identity securely on the backend, finds or creates
+    the User and StudentProfile, and returns JWT tokens and user data.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        id_token = request.data.get('id_token') or request.data.get('credential')
+        if not id_token or not str(id_token).strip():
+            return Response(
+                {'error': 'Google ID token is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            google_data = verify_google_id_token(str(id_token).strip())
+        except ValueError as err:
+            return Response(
+                {'error': str(err)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        email = google_data['email']
+        given_name = google_data['given_name']
+        family_name = google_data['family_name']
+        picture = google_data['picture']
+
+        # 1. Find or create user by verified email
+        user = User.objects.filter(email__iexact=email).first()
+
+        if user:
+            # Existing user - check if active
+            if not user.is_active:
+                return Response(
+                    {'error': 'This user account is inactive. Please contact support.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            # Optionally populate missing first/last name
+            updated_fields = []
+            if not user.first_name and given_name:
+                user.first_name = given_name
+                updated_fields.append('first_name')
+            if not user.last_name and family_name:
+                user.last_name = family_name
+                updated_fields.append('last_name')
+            if updated_fields:
+                user.save(update_fields=updated_fields)
+
+            # Ensure profile exists and update picture / last_activity
+            profile, _ = StudentProfile.objects.get_or_create(user=user)
+            profile_updates = ['last_activity']
+            profile.last_activity = timezone.now()
+            if not profile.avatar_url and picture:
+                profile.avatar_url = picture
+                profile_updates.append('avatar_url')
+            profile.save(update_fields=profile_updates)
+
+            created = False
+        else:
+            # 2. New user registration from Google
+            # Generate a clean, unique username based on email
+            raw_prefix = re.sub(r'[^a-zA-Z0-9_]', '', email.split('@')[0])
+            base_username = raw_prefix if len(raw_prefix) >= 3 else f"user_{raw_prefix}"
+            username = base_username
+
+            counter = 1
+            while User.objects.filter(username__iexact=username).exists():
+                suffix = f"_{counter}"
+                username = f"{base_username[:140]}{suffix}"
+                counter += 1
+
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                first_name=given_name,
+                last_name=family_name,
+            )
+            user.set_unusable_password()
+            user.save()
+
+            # Profile is created via post_save signal; attach Google picture if present
+            profile, _ = StudentProfile.objects.get_or_create(user=user)
+            if picture:
+                profile.avatar_url = picture
+                profile.save(update_fields=['avatar_url'])
+
+            created = True
+
+        tokens = get_tokens_for_user(user)
+        user_data = UserSerializer(user).data
+
+        msg = 'Account created with Google.' if created else 'Signed in with Google successfully.'
+        return Response(
+            {
+                'message': msg,
+                'user': user_data,
+                'tokens': tokens,
+                'requires_profile_completion': not user_data['is_profile_completed'],
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
         )
 
 
