@@ -3,7 +3,7 @@
  * Handles base URL configuration, headers, JWT tokens, and automated authentication error handling.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
 
 const TOKEN_KEY_ACCESS = "sb_access_token";
 const TOKEN_KEY_REFRESH = "sb_refresh_token";

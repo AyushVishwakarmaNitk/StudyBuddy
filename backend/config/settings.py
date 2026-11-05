@@ -29,6 +29,9 @@ ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_raw.split(',') if h.strip()]
 # Default is 1800 seconds (30 minutes). Warning dialog fires 60 s before this.
 SESSION_TIMEOUT_SECONDS = int(os.getenv('SESSION_TIMEOUT_SECONDS', '1800'))
 
+# Google OAuth Settings
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', os.getenv('VITE_GOOGLE_CLIENT_ID', ''))
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
