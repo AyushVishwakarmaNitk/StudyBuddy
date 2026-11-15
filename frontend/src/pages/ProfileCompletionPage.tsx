@@ -4,6 +4,7 @@ import Avatar from "../components/common/Avatar";
 import { authApi } from "../api/auth";
 import type { AuthUser } from "../api/auth";
 import type { EducationLevel } from "../types/dashboard";
+import { INDIAN_DEGREES } from "../constants/degrees";
 import styles from "./ProfileCompletionPage.module.css";
 
 interface ProfileCompletionPageProps {
@@ -528,13 +529,18 @@ export const ProfileCompletionPage: React.FC<ProfileCompletionPageProps> = ({
                 <div className={styles.formGrid2}>
                   <div className={styles.formGroup}>
                     <label className={styles.label}>Degree</label>
-                    <input
-                      type="text"
-                      className={styles.input}
-                      placeholder="e.g., B.Tech, B.Sc, M.Tech"
+                    <select
+                      className={styles.select}
                       value={eduDegree}
                       onChange={(e) => setEduDegree(e.target.value)}
-                    />
+                    >
+                      <option value="">Select Degree...</option>
+                      {INDIAN_DEGREES.map((deg) => (
+                        <option key={deg} value={deg}>
+                          {deg}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className={styles.formGroup}>
                     <label className={styles.label}>Specialization</label>

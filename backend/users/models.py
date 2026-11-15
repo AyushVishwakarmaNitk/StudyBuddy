@@ -105,6 +105,7 @@ class StudySpace(models.Model):
     STATUS_CHOICES = [
         ('active', 'Active'),
         ('partner_needed', 'Partner Needed'),
+        ('pending_request', 'Pending Request'),
     ]
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='study_spaces')
@@ -182,6 +183,158 @@ class QuestionnaireResponse(models.Model):
 
     def __str__(self):
         return f"Questionnaire by {self.user.username} ({self.created_at.strftime('%Y-%m-%d')})"
+
+
+class PartnerRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_partner_requests')
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_partner_requests')
+    study_space = models.ForeignKey(StudySpace, on_delete=models.CASCADE, related_name='partner_requests')
+    compatibility_score = models.IntegerField(default=0)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Request from {self.sender.username} to {self.receiver.username} for {self.study_space.title} ({self.status})"
+
+
+class StudyTask(models.Model):
+    space = models.ForeignKey(StudySpace, on_delete=models.CASCADE, related_name='tasks')
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_study_tasks')
+    # Null assignee means this task is shared and can be completed by both partners.
+    assignee = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE, related_name='assigned_study_tasks')
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default='')
+    deadline = models.DateField()
+    is_daily = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['deadline', '-created_at']
+
+    def __str__(self):
+        return f"{self.title} ({self.space.title})"
+
+
+class StudyTaskCompletion(models.Model):
+    task = models.ForeignKey(StudyTask, on_delete=models.CASCADE, related_name='completions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='study_task_completions')
+    completion_note = models.TextField(blank=True, default='')
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['completed_at']
+        constraints = [models.UniqueConstraint(fields=['task', 'user'], name='unique_study_task_completion')]
+
+
+class StudySpaceMessage(models.Model):
+    space = models.ForeignKey(StudySpace, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='study_space_messages')
+    message = models.TextField(max_length=4000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+
+class StudyBet(models.Model):
+    STATUS_CHOICES = [
+        ('open', 'Waiting for partner'),
+        ('accepted', 'Accepted'),
+        ('resolved', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    space = models.ForeignKey(StudySpace, on_delete=models.CASCADE, related_name='bets')
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_study_bets')
+    accepted_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='accepted_study_bets')
+    winner = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='won_study_bets')
+    task = models.ForeignKey(StudyTask, null=True, blank=True, on_delete=models.SET_NULL, related_name='bets')
+    description = models.CharField(max_length=240)
+    reward = models.CharField(max_length=120)
+    deadline = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class StudyRoom(models.Model):
+    space = models.ForeignKey(StudySpace, on_delete=models.CASCADE, related_name='video_rooms')
+    initiator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='initiated_study_rooms')
+    status = models.CharField(max_length=12, choices=[('active', 'Active'), ('ended', 'Ended')], default='active')
+    created_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class StudyRoomSignal(models.Model):
+    KIND_CHOICES = [
+        ('offer', 'WebRTC Offer'),
+        ('answer', 'WebRTC Answer'),
+        ('ice_candidate', 'ICE Candidate'),
+        ('end', 'Call Ended'),
+    ]
+
+    room = models.ForeignKey(StudyRoom, on_delete=models.CASCADE, related_name='signals')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='study_room_signals')
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']
+
+
+class StudentNotification(models.Model):
+    KIND_CHOICES = [
+        ('partner_request_accepted', 'Partner request accepted'),
+        ('partner_request_declined', 'Partner request declined'),
+        ('study_task_created', 'Study task created'),
+        ('study_task_completed', 'Study task completed'),
+        ('study_task_reopened', 'Study task reopened'),
+        ('study_bet_created', 'Study bet created'),
+        ('study_bet_accepted', 'Study bet accepted'),
+        ('study_bet_resolved', 'Study bet resolved'),
+    ]
+
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='studybuddy_notifications')
+    partner_request = models.ForeignKey(
+        PartnerRequest,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='notifications',
+    )
+    study_space = models.ForeignKey(StudySpace, null=True, blank=True, on_delete=models.SET_NULL, related_name='notifications')
+    study_task = models.ForeignKey(StudyTask, null=True, blank=True, on_delete=models.SET_NULL, related_name='notifications')
+    study_bet = models.ForeignKey(StudyBet, null=True, blank=True, on_delete=models.SET_NULL, related_name='notifications')
+    kind = models.CharField(max_length=40, choices=KIND_CHOICES)
+    title = models.CharField(max_length=160)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} for {self.recipient.username}"
 
 
 @receiver(post_save, sender=User)

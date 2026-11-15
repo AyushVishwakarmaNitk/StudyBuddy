@@ -174,3 +174,74 @@
   transform: translateY(-2px);
   box-shadow: 0 8px 22px rgba(255, 75, 43, 0.35);
 }
+
+/* PENDING REQUEST STATE */
+.spaceCardPending {
+  border-color: #fbbf24;
+  background: linear-gradient(135deg, #fff 85%, #fffbeb 100%);
+}
+
+.pendingBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fcd34d;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pendingRequestInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pendingTo {
+  font-size: 12px;
+  color: #5f6c7b;
+}
+
+.pendingScore {
+  color: #ff4b2b;
+  font-weight: 700;
+}
+
+.pendingActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.awaitingText {
+  font-size: 12.5px;
+  color: #d97706;
+  font-weight: 600;
+  text-align: center;
+  padding: 10px;
+  background: #fffbeb;
+  border-radius: 10px;
+}
+
+.cancelRequestBtn {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #fff8f8;
+  border: 1.5px solid #fecaca;
+  color: #ef4444;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.cancelRequestBtn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+

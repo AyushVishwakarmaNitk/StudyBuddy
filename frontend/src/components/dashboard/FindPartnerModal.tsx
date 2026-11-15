@@ -285,14 +285,7 @@ export const FindPartnerModal: React.FC<FindPartnerModalProps> = ({
       setCurrentSection(8); // Show Results Step
     } catch (err) {
       console.error("Error submitting questionnaire:", err);
-      // Fallback: fetch available partners
-      try {
-        const fallbackList = await studyBuddyApi.getAvailablePartners();
-        setTopMatches(fallbackList.slice(0, 5));
-        setCurrentSection(8);
-      } catch {
-        alert("Failed to analyze matches. Please verify network and try again.");
-      }
+      alert("Could not calculate matches right now. Your questionnaire is saved; please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -1121,12 +1114,17 @@ export const FindPartnerModal: React.FC<FindPartnerModalProps> = ({
               <div className={styles.matchesHeader}>
                 <h3 className={styles.matchesTitle}>Top 5 Compatible Study Partners</h3>
                 <p className={styles.matchesSubtitle}>
-                  Select your preferred partner to connect and activate your <strong>{space.title}</strong> study space.
+                  Choose a student to send a partner request for <strong>{space.title}</strong>. Your study space becomes active after they accept.
                 </p>
               </div>
 
               <div className={styles.matchesList}>
-                {topMatches.map((partner, index) => {
+                {topMatches.length === 0 ? (
+                  <div className={styles.noMatches}>
+                    <h4>No matches for this subject and topic yet</h4>
+                    <p>We only recommend students with the same subject and an overlapping topic. Retake the questionnaire to adjust your choices.</p>
+                  </div>
+                ) : topMatches.map((partner, index) => {
                   const isConnecting = connectingPartnerId === partner.id;
                   const initials = partner.name
                     ? partner.name
@@ -1192,7 +1190,7 @@ export const FindPartnerModal: React.FC<FindPartnerModalProps> = ({
                         onClick={() => handleConnectPartner(partner)}
                         disabled={isConnecting}
                       >
-                        {isConnecting ? "Connecting Space..." : "Connect as Study Partner 🚀"}
+                        {isConnecting ? "Sending request..." : "Send Partner Request"}
                       </button>
                     </div>
                   );

@@ -1,15 +1,24 @@
 import re
 from datetime import timedelta
+import logging
 from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.db import transaction
+from django.db.models import Q
+from django.core.mail import send_mail
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ValidationError
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import StudentProfile, EducationRecord, StudySpace, QuestionnaireResponse
+from .models import StudentProfile, EducationRecord, StudySpace, QuestionnaireResponse, PartnerRequest, StudentNotification
 from .google_auth import verify_google_id_token
 from .serializers import (
     RegisterSerializer,
@@ -20,6 +29,8 @@ from .serializers import (
     StudySpaceSerializer,
     StudyPartnerSerializer,
     QuestionnaireResponseSerializer,
+    PartnerRequestSerializer,
+    StudentNotificationSerializer,
 )
 from .matching import calculate_partner_matches
 
@@ -121,6 +132,67 @@ class LoginView(APIView):
             },
             status=status.HTTP_401_UNAUTHORIZED
         )
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = str(request.data.get('email', '')).strip()
+        user = User.objects.filter(email__iexact=email, is_active=True).first() if email else None
+
+        # Use the same response for known and unknown addresses to avoid account discovery.
+        if user:
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            frontend_url = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:5173').rstrip('/')
+            reset_url = f"{frontend_url}/reset-password?uid={uid}&token={token}"
+            try:
+                send_mail(
+                    'Reset your StudyBuddy password',
+                    f"Hi {user.first_name or user.username},\n\nUse this link to choose a new password. It expires after a limited time:\n{reset_url}\n\nIf you did not request this, you can ignore this email.",
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+                    fail_silently=False,
+                )
+            except Exception:
+                # Keep the public response generic while preserving the delivery error in logs.
+                logging.getLogger(__name__).exception('Password reset email could not be sent')
+
+        return Response(
+            {'message': 'If an account exists for that email, password reset instructions have been sent.'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        uid = request.data.get('uid', '')
+        token = request.data.get('token', '')
+        new_password = request.data.get('new_password', '')
+
+        if not isinstance(new_password, str):
+            return Response({'error': 'Please provide a valid new password.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id, is_active=True)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        if not user or not default_token_generator.check_token(user, token):
+            return Response({'error': 'This password reset link is invalid or has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            validate_password(new_password, user)
+        except ValidationError as err:
+            return Response({'error': ' '.join(err.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save(update_fields=['password'])
+        return Response({'message': 'Your password has been reset. You can now sign in.'}, status=status.HTTP_200_OK)
 
 
 class GoogleAuthView(APIView):
@@ -443,7 +515,7 @@ class StudySpaceListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        spaces = StudySpace.objects.filter(owner=request.user)
+        spaces = StudySpace.objects.filter(Q(owner=request.user) | Q(partner=request.user)).distinct()
         serializer = StudySpaceSerializer(spaces, many=True)
         return Response({'spaces': serializer.data}, status=status.HTTP_200_OK)
 
@@ -467,14 +539,17 @@ class StudySpaceDetailView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    def get_object(self, pk, user):
+    def get_object(self, pk, user, include_partner=False):
         try:
-            return StudySpace.objects.get(pk=pk, owner=user)
+            space = StudySpace.objects.get(pk=pk)
+            if space.owner_id == user.id or (include_partner and space.partner_id == user.id):
+                return space
+            return None
         except StudySpace.DoesNotExist:
             return None
 
     def get(self, request, pk):
-        space = self.get_object(pk, request.user)
+        space = self.get_object(pk, request.user, include_partner=True)
         if not space:
             return Response({'error': 'Study space not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(StudySpaceSerializer(space).data)
@@ -500,6 +575,10 @@ class StudySpaceDetailView(APIView):
         space = self.get_object(pk, request.user)
         if not space:
             return Response({'error': 'Study space not found.'}, status=status.HTTP_404_NOT_FOUND)
+        # Delete any questionnaire response attached to this space so history resets upon deletion
+        QuestionnaireResponse.objects.filter(study_space=space).delete()
+        # Cancel any pending partner requests
+        PartnerRequest.objects.filter(study_space=space).update(status='cancelled')
         space.delete()
         return Response({'message': 'Study space deleted successfully.'}, status=status.HTTP_200_OK)
 
@@ -542,44 +621,57 @@ class QuestionnaireSubmitAndMatchView(APIView):
             except StudySpace.DoesNotExist:
                 study_space = None
 
-        # Create or update QuestionnaireResponse
-        questionnaire = QuestionnaireResponse.objects.create(
-            user=request.user,
-            study_space=study_space,
+        # Upsert QuestionnaireResponse (update if retaking for this study space)
+        questionnaire = None
+        if study_space:
+            questionnaire = QuestionnaireResponse.objects.filter(user=request.user, study_space=study_space).first()
+
+        fields_data = {
             # Section 1
-            subjects=data.get('subjects', []),
-            custom_subject=data.get('custom_subject', ''),
-            topics=data.get('topics', []),
-            custom_topics=data.get('custom_topics', ''),
+            'subjects': data.get('subjects', []),
+            'custom_subject': data.get('custom_subject', ''),
+            'topics': data.get('topics', []),
+            'custom_topics': data.get('custom_topics', ''),
             # Section 2
-            understanding_level=data.get('understanding_level', ''),
-            problem_solving_comfort=data.get('problem_solving_comfort', ''),
-            preferred_partner_level=data.get('preferred_partner_level', ''),
+            'understanding_level': data.get('understanding_level', ''),
+            'problem_solving_comfort': data.get('problem_solving_comfort', ''),
+            'preferred_partner_level': data.get('preferred_partner_level', ''),
             # Section 3
-            daily_study_hours=data.get('daily_study_hours', ''),
-            preferred_study_time=data.get('preferred_study_time', ''),
-            available_days=data.get('available_days', []),
-            schedule_flexibility=data.get('schedule_flexibility', ''),
+            'daily_study_hours': data.get('daily_study_hours', ''),
+            'preferred_study_time': data.get('preferred_study_time', ''),
+            'available_days': data.get('available_days', []),
+            'schedule_flexibility': data.get('schedule_flexibility', ''),
             # Section 4
-            session_duration=data.get('session_duration', ''),
-            session_structure=data.get('session_structure', ''),
+            'session_duration': data.get('session_duration', ''),
+            'session_structure': data.get('session_structure', ''),
             # Section 5
-            learning_modes=data.get('learning_modes', []),
-            collaboration_type=data.get('collaboration_type', ''),
-            partner_quality=data.get('partner_quality', ''),
+            'learning_modes': data.get('learning_modes', []),
+            'collaboration_type': data.get('collaboration_type', ''),
+            'partner_quality': data.get('partner_quality', ''),
             # Section 6
-            communication_channels=data.get('communication_channels', []),
-            primary_goal=data.get('primary_goal', ''),
-            study_frequency=data.get('study_frequency', ''),
-            expected_duration=data.get('expected_duration', ''),
+            'communication_channels': data.get('communication_channels', []),
+            'primary_goal': data.get('primary_goal', ''),
+            'study_frequency': data.get('study_frequency', ''),
+            'expected_duration': data.get('expected_duration', ''),
             # Section 7
-            consistency_rating=data.get('consistency_rating', ''),
-            postpone_frequency=data.get('postpone_frequency', ''),
-            tracking_preference=data.get('tracking_preference', ''),
-            accountability_importance=data.get('accountability_importance', ''),
+            'consistency_rating': data.get('consistency_rating', ''),
+            'postpone_frequency': data.get('postpone_frequency', ''),
+            'tracking_preference': data.get('tracking_preference', ''),
+            'accountability_importance': data.get('accountability_importance', ''),
             # Survey feedback question
-            feedback_question=data.get('feedback_question', ''),
-        )
+            'feedback_question': data.get('feedback_question', ''),
+        }
+
+        if questionnaire:
+            for k, v in fields_data.items():
+                setattr(questionnaire, k, v)
+            questionnaire.save()
+        else:
+            questionnaire = QuestionnaireResponse.objects.create(
+                user=request.user,
+                study_space=study_space,
+                **fields_data
+            )
 
         # Sync profile study preferences from questionnaire
         profile, _ = StudentProfile.objects.get_or_create(user=request.user)
@@ -632,10 +724,9 @@ class StudySpaceMatchesView(APIView):
         except StudySpace.DoesNotExist:
             return Response({'error': 'Study space not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Check for space-specific questionnaire, fallback to user's latest questionnaire
+        # Questionnaire history belongs to a single study goal. Never reuse a response
+        # from another goal when deciding whether this space has completed onboarding.
         target_q = QuestionnaireResponse.objects.filter(user=request.user, study_space=space).order_by('-created_at').first()
-        if not target_q:
-            target_q = QuestionnaireResponse.objects.filter(user=request.user).order_by('-created_at').first()
 
         if not target_q:
             # If no questionnaire exists yet, return empty list with flag indicating questionnaire required
@@ -702,3 +793,222 @@ class LogoutView(APIView):
                 pass
 
         return Response({'message': 'Logged out successfully.'}, status=status.HTTP_200_OK)
+
+
+class PartnerRequestListCreateView(APIView):
+    """
+    List incoming/outgoing partner requests and send a new request.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        incoming = PartnerRequest.objects.filter(
+            receiver=user, status='pending'
+        ).select_related('sender__profile', 'study_space').order_by('-created_at')
+
+        outgoing = PartnerRequest.objects.filter(
+            sender=user, status='pending'
+        ).select_related('receiver__profile', 'study_space').order_by('-created_at')
+
+        return Response({
+            'incoming': PartnerRequestSerializer(incoming, many=True).data,
+            'outgoing': PartnerRequestSerializer(outgoing, many=True).data,
+        }, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        user = request.user
+        receiver_id = request.data.get('receiver_id')
+        space_id = request.data.get('study_space_id')
+        compatibility_score = request.data.get('compatibility_score', 0)
+
+        if not receiver_id:
+            return Response({'error': 'Please select a study partner to connect with.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not space_id:
+            return Response({'error': 'Study space is required to send a partner request.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            space = StudySpace.objects.get(id=space_id, owner=user)
+        except StudySpace.DoesNotExist:
+            return Response({'error': 'Study space not found or you are not authorized.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            receiver = User.objects.get(id=receiver_id, is_active=True)
+        except User.DoesNotExist:
+            return Response({'error': 'Selected student could not be found or is inactive.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if receiver.id == user.id:
+            return Response({'error': 'You cannot send a partner request to yourself.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if there is already an active pending request to this user for this space
+        existing_request = PartnerRequest.objects.filter(
+            study_space=space,
+            receiver=receiver,
+            status='pending'
+        ).first()
+
+        if existing_request:
+            receiver_name = f"{receiver.first_name} {receiver.last_name}".strip() or receiver.username
+            return Response(
+                {'error': f'A pending partner request has already been sent to {receiver_name}.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Cancel any other pending request for this space
+        PartnerRequest.objects.filter(study_space=space, status='pending').update(status='cancelled')
+
+        score = 0
+        try:
+            score = int(compatibility_score)
+        except (ValueError, TypeError):
+            score = 0
+
+        partner_req = PartnerRequest.objects.create(
+            sender=user,
+            receiver=receiver,
+            study_space=space,
+            compatibility_score=score,
+            status='pending'
+        )
+
+        space.status = 'pending_request'
+        space.save(update_fields=['status'])
+
+        target_name = f"{receiver.first_name} {receiver.last_name}".strip() or receiver.username
+        return Response(
+            {
+                'message': f'Study partner request sent to {target_name}! You will be paired as soon as they accept.',
+                'request': PartnerRequestSerializer(partner_req).data
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+
+class StudentNotificationListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        notifications = StudentNotification.objects.filter(recipient=request.user, is_read=False)
+        return Response({'notifications': StudentNotificationSerializer(notifications, many=True).data})
+
+
+class StudentNotificationReadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        notification = StudentNotification.objects.filter(recipient=request.user, pk=pk).first()
+        if not notification:
+            return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+        notification.is_read = True
+        notification.save(update_fields=['is_read'])
+        return Response({'message': 'Notification marked as read.'}, status=status.HTTP_200_OK)
+
+
+class PartnerRequestAcceptView(APIView):
+    """Accept an incoming partner request and activate the study spaces for both users."""
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            partner_req = PartnerRequest.objects.select_for_update().get(pk=pk, receiver=request.user)
+        except PartnerRequest.DoesNotExist:
+            return Response({'error': 'Partner request not found or not addressed to you.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if partner_req.status != 'pending':
+            return Response({'error': f'This request is already {partner_req.status}.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        partner_req.status = 'accepted'
+        partner_req.save(update_fields=['status'])
+
+        # Pair sender's study space
+        space = partner_req.study_space
+        space.partner = request.user
+        space.status = 'active'
+        space.upcoming_sessions = max(space.upcoming_sessions, 1)
+        space.save()
+
+        # Cancel any remaining pending requests for this space
+        PartnerRequest.objects.filter(study_space=space, status='pending').update(status='cancelled')
+
+        # The questionnaire is no longer needed once this goal has a confirmed partner.
+        QuestionnaireResponse.objects.filter(user=partner_req.sender, study_space=space).delete()
+
+        sender_name = f"{partner_req.sender.first_name} {partner_req.sender.last_name}".strip() or partner_req.sender.username
+        StudentNotification.objects.create(
+            recipient=partner_req.sender,
+            partner_request=partner_req,
+            kind='partner_request_accepted',
+            title='Partner request accepted',
+            message=f'{sender_name} accepted your request for {space.title}. Your shared study goal is ready.',
+        )
+        return Response(
+            {
+                'message': f'You and {sender_name} are now study partners! The study space is active.',
+                'request': PartnerRequestSerializer(partner_req).data
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class PartnerRequestDeclineView(APIView):
+    """Decline an incoming partner request."""
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            partner_req = PartnerRequest.objects.select_for_update().get(pk=pk, receiver=request.user)
+        except PartnerRequest.DoesNotExist:
+            return Response({'error': 'Partner request not found or not addressed to you.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if partner_req.status != 'pending':
+            return Response({'error': f'This request is already {partner_req.status}.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        partner_req.status = 'declined'
+        partner_req.save(update_fields=['status'])
+
+        space = partner_req.study_space
+        if not PartnerRequest.objects.filter(study_space=space, status='pending').exists():
+            space.status = 'partner_needed'
+            space.save(update_fields=['status'])
+
+        receiver_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+        StudentNotification.objects.create(
+            recipient=partner_req.sender,
+            partner_request=partner_req,
+            kind='partner_request_declined',
+            title='Partner request declined',
+            message=f'{receiver_name} declined your request for {space.title}. You can choose another match.',
+        )
+
+        return Response(
+            {'message': 'Partner request declined.', 'request': PartnerRequestSerializer(partner_req).data},
+            status=status.HTTP_200_OK
+        )
+
+
+class PartnerRequestCancelView(APIView):
+    """Cancel a sent partner request."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            partner_req = PartnerRequest.objects.get(pk=pk, sender=request.user)
+        except PartnerRequest.DoesNotExist:
+            return Response({'error': 'Partner request not found or you are not the sender.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if partner_req.status != 'pending':
+            return Response({'error': f'This request is already {partner_req.status}.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        partner_req.status = 'cancelled'
+        partner_req.save(update_fields=['status'])
+
+        space = partner_req.study_space
+        space.status = 'partner_needed'
+        space.save(update_fields=['status'])
+
+        return Response(
+            {'message': 'Partner request cancelled.', 'request': PartnerRequestSerializer(partner_req).data},
+            status=status.HTTP_200_OK
+        )

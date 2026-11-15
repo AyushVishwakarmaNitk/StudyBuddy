@@ -10,7 +10,7 @@ Implements platform-wide global student matching according to:
 """
 
 import re
-from typing import List, Dict, Any, Set, Tuple
+from typing import List, Dict, Any, Optional, Set, Tuple
 from django.contrib.auth.models import User
 from .models import QuestionnaireResponse, StudentProfile
 
@@ -112,6 +112,27 @@ def _normalize_topic(topic: str) -> str:
     """Resolves abbreviations and synonyms to standard canonical topic names."""
     cleaned = _clean_str(topic)
     return TOPIC_EQUIVALENCE_MAP.get(cleaned, cleaned)
+
+
+def _subject_keys(questionnaire: QuestionnaireResponse) -> Set[str]:
+    subjects = set(_parse_and_normalize_list(questionnaire.subjects))
+    # "Other" is only a form control label; it is not a shared academic subject.
+    subjects.discard('other')
+    subjects.discard('other (specify)')
+    if questionnaire.custom_subject:
+        subjects.add(_clean_str(questionnaire.custom_subject))
+    return subjects
+
+
+def _topic_keys(questionnaire: QuestionnaireResponse) -> Set[str]:
+    topics = {_normalize_topic(topic) for topic in _parse_and_normalize_list(questionnaire.topics)}
+    if questionnaire.custom_topics:
+        topics.update(
+            _normalize_topic(topic)
+            for topic in questionnaire.custom_topics.split(',')
+            if topic.strip()
+        )
+    return topics
 
 
 def _jaccard_similarity(set_a: Set[str], set_b: Set[str]) -> float:
@@ -543,25 +564,33 @@ def score_consistency_accountability_compatibility(target_q: QuestionnaireRespon
 # 4. GLOBAL STUDENT RETRIEVAL & MASTER COMPATIBILITY CALCULATION
 # ============================================================================
 
-def get_global_eligible_candidates(requesting_user: User) -> List[Tuple[User, QuestionnaireResponse]]:
+def get_global_eligible_candidates(
+    requesting_user: User,
+    target_q: Optional[QuestionnaireResponse] = None,
+) -> List[Tuple[User, QuestionnaireResponse]]:
     """
     Retrieves eligible students platform-wide:
     - Global retrieval (not restricted to any StudySpace).
     - StudySpace membership is not mandatory.
     - Excludes requesting_user.
     - Excludes students without completed questionnaires.
-    - Avoids duplicate recommendations (uses latest valid response per student).
+    - Avoids duplicate recommendations (uses one latest valid response per student).
     - Respects active account status (is_active=True).
     """
     eligible_users = User.objects.filter(is_active=True).exclude(id=requesting_user.id).select_related('profile')
 
     candidates = []
     for user in eligible_users:
-        latest_q = QuestionnaireResponse.objects.filter(user=user).order_by('-created_at').first()
-        if latest_q:
-            # Valid completed questionnaire verification
-            if latest_q.subjects or latest_q.understanding_level:
-                candidates.append((user, latest_q))
+        responses = QuestionnaireResponse.objects.filter(user=user).order_by('-created_at')
+        for response in responses:
+            if not (response.subjects or response.understanding_level):
+                continue
+            if target_q and not (_subject_keys(target_q) & _subject_keys(response)):
+                continue
+            if target_q and not (_topic_keys(target_q) & _topic_keys(response)):
+                continue
+            candidates.append((user, response))
+            break
 
     return candidates
 
@@ -572,7 +601,7 @@ def calculate_partner_matches(target_q: QuestionnaireResponse, requesting_user: 
     Final Score = Sum(Factor Score * Factor Weight)
     Returns Top `limit` matched study partners with calculated score and dynamic reasons.
     """
-    candidate_pairs = get_global_eligible_candidates(requesting_user)
+    candidate_pairs = get_global_eligible_candidates(requesting_user, target_q)
 
     scored_partners = []
 

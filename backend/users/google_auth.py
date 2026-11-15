@@ -87,8 +87,9 @@ def verify_google_id_token(id_token: str, expected_client_id: Optional[str] = No
 
     if target_client_id:
         token_aud = payload.get("aud")
-        if token_aud != target_client_id:
-            logger.warning(f"Google token audience mismatch: expected '{target_client_id}', got '{token_aud}'")
+        token_azp = payload.get("azp")
+        if token_aud != target_client_id and token_azp != target_client_id:
+            logger.warning(f"Google token audience mismatch: expected '{target_client_id}', got aud='{token_aud}', azp='{token_azp}'")
             raise ValueError("Google token audience mismatch. The token was issued for a different client.")
 
     # 3. Verify email claim

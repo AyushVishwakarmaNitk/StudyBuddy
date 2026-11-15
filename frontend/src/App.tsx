@@ -1,23 +1,36 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import LandingPage from "./pages/LandingPage";
 import SignUpLoginPage from "./pages/SignUpLoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProfileCompletionPage from "./pages/ProfileCompletionPage";
 import QuestionnairePage from "./pages/QuestionnairePage";
+import PasswordResetPage from "./pages/PasswordResetPage";
+import StudySpacePage from "./pages/StudySpacePage";
 import SessionWarningDialog from "./components/common/SessionWarningDialog";
+import PencilLoader from "./components/common/PencilLoader";
+import { ToastProvider } from "./context/ToastContext";
 import { authApi } from "./api/auth";
 import type { AuthUser } from "./api/auth";
 import type { StudySpace } from "./types/dashboard";
 import { getAccessToken } from "./api/client";
 import { useSessionTimeout } from "./hooks/useSessionTimeout";
 
+const getStudySpaceIdFromPath = () => window.location.pathname.match(/^\/study-space\/(\d+)\/?$/)?.[1] ?? null;
+
 function App() {
   const [currentView, setCurrentView] = useState<
-    "landing" | "auth" | "profile-completion" | "dashboard" | "questionnaire"
-  >("landing");
+    "landing" | "auth" | "profile-completion" | "dashboard" | "questionnaire" | "forgot-password" | "reset-password" | "study-space"
+  >(() => {
+    if (window.location.pathname === "/forgot-password") return "forgot-password";
+    if (window.location.pathname === "/reset-password") return "reset-password";
+    if (getStudySpaceIdFromPath()) return "study-space";
+    return "landing";
+  });
   const [authIsSignUp, setAuthIsSignUp] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [questionnaireSpace, setQuestionnaireSpace] = useState<StudySpace | null>(null);
+  const [studySpaceId, setStudySpaceId] = useState<string | null>(getStudySpaceIdFromPath);
+  const initialStudySpaceId = useRef(studySpaceId).current;
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(null);
 
@@ -33,7 +46,8 @@ function App() {
       currentUser &&
         (currentView === "dashboard" ||
           currentView === "profile-completion" ||
-          currentView === "questionnaire")
+          currentView === "questionnaire" ||
+          currentView === "study-space")
     ),
     onSessionExpired: () => {
       setCurrentUser(null);
@@ -55,7 +69,8 @@ function App() {
   useEffect(() => {
     const initAuth = async () => {
       const token = getAccessToken();
-      if (token) {
+      const isPasswordRoute = ["/forgot-password", "/reset-password"].includes(window.location.pathname);
+      if (token && !isPasswordRoute) {
         try {
           const res = await authApi.getCurrentUser();
           if (res?.user) {
@@ -63,19 +78,49 @@ function App() {
             if (!res.user.is_profile_completed) {
               setCurrentView("profile-completion");
             } else {
-              setCurrentView("dashboard");
+              setCurrentView(initialStudySpaceId ? "study-space" : "dashboard");
             }
           }
         } catch {
           // Token expired or invalid
           authApi.logout();
+          if (initialStudySpaceId) {
+            window.history.replaceState({}, "", "/");
+            setStudySpaceId(null);
+            setCurrentView("landing");
+          }
         }
       }
+      if (!token && initialStudySpaceId) setCurrentView("landing");
       setIsInitializing(false);
     };
 
     initAuth();
   }, []);
+
+  useEffect(() => {
+    const handleBrowserNavigation = () => {
+      const routeSpaceId = getStudySpaceIdFromPath();
+      if (routeSpaceId) {
+        setStudySpaceId(routeSpaceId);
+        setCurrentView(currentUser ? "study-space" : "landing");
+      } else if (window.location.pathname === "/forgot-password") {
+        setCurrentView("forgot-password");
+      } else if (window.location.pathname === "/reset-password") {
+        setCurrentView("reset-password");
+      } else if (window.location.pathname === "/auth") {
+        setStudySpaceId(null);
+        setCurrentView("auth");
+      } else if (currentUser) {
+        setStudySpaceId(null);
+        setCurrentView("dashboard");
+      } else {
+        setCurrentView("landing");
+      }
+    };
+    window.addEventListener("popstate", handleBrowserNavigation);
+    return () => window.removeEventListener("popstate", handleBrowserNavigation);
+  }, [currentUser]);
 
   const handleNavigateToAuth = (isSignUp: boolean = false) => {
     setAuthIsSignUp(isSignUp);
@@ -83,7 +128,32 @@ function App() {
     setCurrentView("auth");
   };
 
+  const showForgotPassword = () => {
+    window.history.pushState({}, "", "/forgot-password");
+    setCurrentView("forgot-password");
+  };
+
+  const returnToSignIn = () => {
+    window.history.pushState({}, "", "/auth");
+    setAuthIsSignUp(false);
+    setCurrentView("auth");
+  };
+
+  const openStudySpace = (space: StudySpace) => {
+    const id = String(space.id);
+    setStudySpaceId(id);
+    window.history.pushState({}, "", `/study-space/${id}`);
+    setCurrentView("study-space");
+  };
+
+  const backToDashboard = () => {
+    window.history.pushState({}, "", "/dashboard");
+    setStudySpaceId(null);
+    setCurrentView("dashboard");
+  };
+
   const handleBackToLanding = () => {
+    window.history.pushState({}, "", "/");
     setCurrentView("landing");
   };
 
@@ -108,7 +178,9 @@ function App() {
     await authApi.logout();
     setCurrentUser(null);
     setQuestionnaireSpace(null);
+      setStudySpaceId(null);
     setSessionExpiredMessage(null);
+    window.history.pushState({}, "", "/");
     setCurrentView("landing");
   };
 
@@ -121,19 +193,15 @@ function App() {
           alignItems: "center",
           justifyContent: "center",
           background: "#FFFBF7",
-          fontFamily: "'Inter', sans-serif",
-          color: "#E25822",
-          fontSize: "1.1rem",
-          fontWeight: 600,
         }}
       >
-        Loading StudyBuddy...
+        <PencilLoader size={90} message="Loading StudyBuddy..." />
       </div>
     );
   }
 
   return (
-    <>
+    <ToastProvider>
       {/* Session Inactivity Warning Dialog */}
       <SessionWarningDialog
         isOpen={isWarningOpen}
@@ -148,6 +216,7 @@ function App() {
         <DashboardPage
           user={currentUser}
           onLogout={handleLogout}
+          onOpenStudySpace={openStudySpace}
           onFindPartnerForSpace={(space) => {
             setQuestionnaireSpace(space);
             setCurrentView("questionnaire");
@@ -163,11 +232,15 @@ function App() {
             setQuestionnaireSpace(null);
             setCurrentView("dashboard");
           }}
-          onPartnerConnected={() => {
+          onPartnerRequestSent={() => {
             setQuestionnaireSpace(null);
             setCurrentView("dashboard");
           }}
         />
+      )}
+
+      {currentView === "study-space" && studySpaceId && currentUser && (
+        <StudySpacePage spaceId={studySpaceId} user={currentUser} onBack={backToDashboard} />
       )}
 
       {currentView === "profile-completion" && (
@@ -183,6 +256,21 @@ function App() {
           initialIsSignUp={authIsSignUp}
           onBackToLanding={handleBackToLanding}
           onLoginSuccess={handleLoginSuccess}
+          onForgotPassword={showForgotPassword}
+        />
+      )}
+
+      {currentView === "forgot-password" && (
+        <PasswordResetPage mode="request" onBack={returnToSignIn} onComplete={returnToSignIn} />
+      )}
+
+      {currentView === "reset-password" && (
+        <PasswordResetPage
+          mode="confirm"
+          uid={new URLSearchParams(window.location.search).get("uid") ?? ""}
+          token={new URLSearchParams(window.location.search).get("token") ?? ""}
+          onBack={returnToSignIn}
+          onComplete={returnToSignIn}
         />
       )}
 
@@ -193,7 +281,7 @@ function App() {
           onDismissSessionExpired={() => setSessionExpiredMessage(null)}
         />
       )}
-    </>
+    </ToastProvider>
   );
 }
 

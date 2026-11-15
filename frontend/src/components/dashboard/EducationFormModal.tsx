@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import type { EducationRecord, EducationLevel } from "../../types/dashboard";
 import Modal from "../common/Modal";
+import { INDIAN_DEGREES } from "../../constants/degrees";
 import styles from "./EducationFormModal.module.css";
 
 interface EducationFormModalProps {
@@ -403,14 +404,19 @@ export const EducationFormModal: React.FC<EducationFormModalProps> = ({
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Degree *</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder={formData.level === "ug" ? "e.g., B.Tech, B.Sc, BCA" : "e.g., M.Tech, M.Sc, MBA"}
+                <select
+                  className={styles.formSelect}
                   value={formData.degree}
                   onChange={(e) => setFormData({ ...formData, degree: e.target.value })}
                   required
-                />
+                >
+                  <option value="">Select Degree...</option>
+                  {INDIAN_DEGREES.map((deg) => (
+                    <option key={deg} value={deg}>
+                      {deg}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Branch / Specialization *</label>

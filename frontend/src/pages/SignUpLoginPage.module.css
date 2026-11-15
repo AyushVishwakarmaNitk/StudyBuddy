@@ -264,6 +264,10 @@
   text-decoration: none;
   margin: 6px 0 16px;
   transition: color 0.2s ease;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .forgotPassword:hover {
