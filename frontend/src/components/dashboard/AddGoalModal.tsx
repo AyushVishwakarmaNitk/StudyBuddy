@@ -8,9 +8,9 @@ interface AddGoalModalProps {
     title: string;
     subject: string;
     goal: string;
-    schedule: string;
-    duration: string;
-    learningStyle: string;
+    schedule?: string;
+    duration?: string;
+    learningStyle?: string;
   }) => void;
 }
 
@@ -23,9 +23,6 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({
     title: "",
     subject: "",
     goal: "",
-    schedule: "Evenings 7:00 PM - 9:00 PM",
-    duration: "60 mins",
-    learningStyle: "Pomodoro Focus",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -33,17 +30,15 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({
     if (!formData.title.trim() || !formData.goal.trim()) return;
 
     onSubmit({
-      ...formData,
+      title: formData.title.trim(),
       subject: formData.subject.trim() || formData.title.trim(),
+      goal: formData.goal.trim(),
     });
 
     setFormData({
       title: "",
       subject: "",
       goal: "",
-      schedule: "Evenings 7:00 PM - 9:00 PM",
-      duration: "60 mins",
-      learningStyle: "Pomodoro Focus",
     });
   };
 
@@ -101,7 +96,7 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({
           />
         </div>
 
-        <div style={{ marginBottom: "16px" }}>
+        <div style={{ marginBottom: "24px" }}>
           <label style={{ display: "block", fontSize: "12.5px", fontWeight: 700, marginBottom: "6px" }}>
             Specific Target / Objective *
           </label>
@@ -119,56 +114,10 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({
               fontSize: "13px",
               fontFamily: "inherit",
               boxSizing: "border-box",
-              minHeight: "80px",
+              minHeight: "85px",
               resize: "vertical",
             }}
           />
-        </div>
-
-        <div style={{ marginBottom: "16px" }}>
-          <label style={{ display: "block", fontSize: "12.5px", fontWeight: 700, marginBottom: "6px" }}>
-            Preferred Schedule
-          </label>
-          <input
-            type="text"
-            value={formData.schedule}
-            onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-            style={{
-              width: "100%",
-              background: "#faf7f5",
-              border: "1.5px solid #ece7e3",
-              borderRadius: "12px",
-              padding: "12px 14px",
-              fontSize: "13px",
-              fontFamily: "inherit",
-              boxSizing: "border-box",
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: "24px" }}>
-          <label style={{ display: "block", fontSize: "12.5px", fontWeight: 700, marginBottom: "6px" }}>
-            Session Duration & Style
-          </label>
-          <select
-            value={formData.learningStyle}
-            onChange={(e) => setFormData({ ...formData, learningStyle: e.target.value })}
-            style={{
-              width: "100%",
-              background: "#faf7f5",
-              border: "1.5px solid #ece7e3",
-              borderRadius: "12px",
-              padding: "12px 14px",
-              fontSize: "13px",
-              fontFamily: "inherit",
-              boxSizing: "border-box",
-            }}
-          >
-            <option value="Pomodoro Focus">Pomodoro (25m Focus / 5m Break)</option>
-            <option value="Silent Accountability">Silent Accountability</option>
-            <option value="Active Problem Solving">Active Problem Solving & Discussion</option>
-            <option value="Collaborative Pair Coding">Collaborative Pair Coding</option>
-          </select>
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>

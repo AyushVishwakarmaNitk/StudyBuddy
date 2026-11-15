@@ -4,6 +4,7 @@ import BrandLogo from "../components/common/BrandLogo";
 import { authApi } from "../api/auth";
 import type { AuthUser } from "../api/auth";
 import { loadGoogleScript, getGoogleClientId } from "../utils/googleAuth";
+import { sanitizeErrorMessage } from "../utils/errorSanitizer";
 import styles from "./SignUpLoginPage.module.css";
 
 const GoogleIcon = () => (
@@ -49,12 +50,14 @@ interface SignUpLoginPageProps {
   initialIsSignUp?: boolean;
   onBackToLanding?: () => void;
   onLoginSuccess?: (userData: AuthUser) => void;
+  onForgotPassword?: () => void;
 }
 
 const SignUpLoginPage = ({
   initialIsSignUp = false,
   onBackToLanding,
   onLoginSuccess,
+  onForgotPassword,
 }: SignUpLoginPageProps) => {
   const [isSignUp, setIsSignUp] = useState<boolean>(initialIsSignUp);
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -101,8 +104,7 @@ const SignUpLoginPage = ({
         }
       } catch (err: any) {
         setError(
-          err.message ||
-            "Failed to authenticate with Google. Please try again.",
+          sanitizeErrorMessage(err, "Failed to authenticate with Google. Please try again.")
         );
       } finally {
         setIsLoading(false);
@@ -229,8 +231,10 @@ const SignUpLoginPage = ({
       }
     } catch (err: any) {
       setError(
-        err.message ||
-          "Invalid credentials. Please check your username/email and password.",
+        sanitizeErrorMessage(
+          err,
+          "Invalid credentials. Please check your username/email and password."
+        )
       );
     } finally {
       setIsLoading(false);
@@ -264,8 +268,10 @@ const SignUpLoginPage = ({
       setRegistrationSuccess(true);
     } catch (err: any) {
       setError(
-        err.message ||
-          "Registration failed. Please check your details and try again.",
+        sanitizeErrorMessage(
+          err,
+          "Registration failed. Please check your details and try again."
+        )
       );
     } finally {
       setIsLoading(false);
@@ -499,9 +505,9 @@ const SignUpLoginPage = ({
               </button>
             </div>
 
-            <a href="#" className={styles.forgotPassword}>
+            <button type="button" className={styles.forgotPassword} onClick={onForgotPassword}>
               Forgot password?
-            </a>
+            </button>
 
             <button
               type="submit"

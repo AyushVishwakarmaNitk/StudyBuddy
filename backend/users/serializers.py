@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.validators import validate_email
-from .models import StudentProfile, EducationRecord, StudySpace, QuestionnaireResponse
+from .models import StudentProfile, EducationRecord, StudySpace, QuestionnaireResponse, PartnerRequest, StudentNotification
 
 
 class EducationRecordSerializer(serializers.ModelSerializer):
@@ -194,17 +194,64 @@ class StudySpaceSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True
     )
+    pending_request = serializers.SerializerMethodField()
+    owner_id = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = StudySpace
         fields = [
-            'id', 'title', 'subject', 'goal', 'schedule', 'duration',
-            'learning_style', 'partner', 'partner_id', 'sessions_completed',
-            'upcoming_sessions', 'progress_percent', 'status',
-            'created_at', 'updated_at'
+            'id', 'owner_id', 'title', 'subject', 'goal', 'schedule', 'duration',
+            'learning_style', 'partner', 'partner_id', 'pending_request',
+            'sessions_completed', 'upcoming_sessions', 'progress_percent',
+            'status', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'schedule': {'required': False, 'allow_blank': True},
+            'duration': {'required': False, 'allow_blank': True},
+            'learning_style': {'required': False, 'allow_blank': True},
+        }
 
+    def get_pending_request(self, obj):
+        req = obj.partner_requests.filter(status='pending').first()
+        if req:
+            receiver_name = f"{req.receiver.first_name} {req.receiver.last_name}".strip() or req.receiver.username
+            return {
+                'id': req.id,
+                'receiver_id': req.receiver.id,
+                'receiver_name': receiver_name,
+                'compatibility_score': req.compatibility_score,
+                'created_at': req.created_at,
+            }
+        return None
+
+
+class PartnerRequestSerializer(serializers.ModelSerializer):
+    sender = StudyPartnerSerializer(read_only=True)
+    receiver = StudyPartnerSerializer(read_only=True)
+    receiver_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        source='receiver',
+        write_only=True
+    )
+    study_space_id = serializers.PrimaryKeyRelatedField(
+        queryset=StudySpace.objects.all(),
+        source='study_space',
+        write_only=True
+    )
+    study_space_title = serializers.CharField(source='study_space.title', read_only=True)
+    study_space_subject = serializers.CharField(source='study_space.subject', read_only=True)
+    study_space_goal = serializers.CharField(source='study_space.goal', read_only=True)
+
+    class Meta:
+        model = PartnerRequest
+        fields = [
+            'id', 'sender', 'receiver', 'receiver_id',
+            'study_space', 'study_space_id', 'study_space_title',
+            'study_space_subject', 'study_space_goal',
+            'compatibility_score', 'status', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'sender', 'study_space', 'status', 'created_at', 'updated_at']
 
 class QuestionnaireResponseSerializer(serializers.ModelSerializer):
     class Meta:
@@ -230,3 +277,13 @@ class QuestionnaireResponseSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+
+
+class StudentNotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudentNotification
+        fields = [
+            'id', 'kind', 'title', 'message', 'is_read', 'created_at',
+            'partner_request', 'study_space', 'study_task', 'study_bet',
+        ]
+        read_only_fields = fields

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { StudySpace, StudyPartner, QuestionnaireData } from "../types/dashboard";
 import { studyBuddyApi } from "../api/studyBuddy";
 import BrandLogo from "../components/common/BrandLogo";
@@ -7,7 +7,7 @@ import styles from "./QuestionnairePage.module.css";
 interface QuestionnairePageProps {
   space: StudySpace | null;
   onBack: () => void;
-  onPartnerConnected: (spaceId: string, partner: StudyPartner) => void;
+  onPartnerRequestSent: (spaceId: string, partner: StudyPartner) => void;
 }
 
 // Subject options for Q1
@@ -109,7 +109,7 @@ const DAY_OPTIONS = [
 export const QuestionnairePage: React.FC<QuestionnairePageProps> = ({
   space,
   onBack,
-  onPartnerConnected,
+  onPartnerRequestSent,
 }) => {
   // Navigation: 1 to 7 = questionnaire sections; 8 = results view
   const [currentSection, setCurrentSection] = useState<number>(1);
@@ -156,6 +156,69 @@ export const QuestionnairePage: React.FC<QuestionnairePageProps> = ({
   const [trackingPreference, setTrackingPreference] = useState<string>("");
   const [accountabilityImportance, setAccountabilityImportance] = useState<string>("");
   const [feedbackQuestion, setFeedbackQuestion] = useState<string>("");
+
+  // Restore this goal's saved questionnaire and matches when returning to the flow.
+  const activeSpaceId = space?.id;
+  useEffect(() => {
+    if (!activeSpaceId) return;
+    let isCurrent = true;
+
+    const loadSavedQuestionnaire = async () => {
+      try {
+        const [savedResult, matchResult] = await Promise.allSettled([
+          studyBuddyApi.getLatestQuestionnaire(activeSpaceId),
+          studyBuddyApi.getSpaceMatches(activeSpaceId),
+        ]);
+        if (!isCurrent) return;
+
+        const saved = savedResult.status === "fulfilled" ? savedResult.value : null;
+        if (savedResult.status === "rejected") {
+          console.error("Could not restore saved questionnaire answers:", savedResult.reason);
+        }
+        if (saved) {
+          setSelectedSubjects(saved.subjects || []);
+          setCustomSubject(saved.custom_subject || "");
+          setSelectedTopics(saved.topics || []);
+          setCustomTopicInput(saved.custom_topics || "");
+          setUnderstandingLevel(saved.understanding_level || "");
+          setProblemSolvingComfort(saved.problem_solving_comfort || "");
+          setPreferredPartnerLevel(saved.preferred_partner_level || "");
+          setDailyHours(saved.daily_study_hours || "");
+          setPreferredTime(saved.preferred_study_time || "");
+          setAvailableDays(saved.available_days || []);
+          setScheduleFlexibility(saved.schedule_flexibility || "");
+          setSessionDuration(saved.session_duration || "");
+          setSessionStructure(saved.session_structure || "");
+          setLearningModes(saved.learning_modes || []);
+          setCollaborationType(saved.collaboration_type || "");
+          setPartnerQuality(saved.partner_quality || "");
+          setCommunicationChannels(saved.communication_channels || []);
+          setPrimaryGoal(saved.primary_goal || "");
+          setStudyFrequency(saved.study_frequency || "");
+          setExpectedDuration(saved.expected_duration || "");
+          setConsistencyRating(saved.consistency_rating || "");
+          setPostponeFrequency(saved.postpone_frequency || "");
+          setTrackingPreference(saved.tracking_preference || "");
+          setAccountabilityImportance(saved.accountability_importance || "");
+          setFeedbackQuestion(saved.feedback_question || "");
+        }
+
+        if (matchResult.status === "fulfilled") {
+          if (!matchResult.value.requires_questionnaire) {
+            setTopMatches(matchResult.value.matches);
+            setCurrentSection(8);
+          }
+        } else {
+          console.error("Could not restore saved questionnaire matches:", matchResult.reason);
+        }
+      } catch (err) {
+        console.error("Could not restore saved questionnaire:", err);
+      }
+    };
+
+    void loadSavedQuestionnaire();
+    return () => { isCurrent = false; };
+  }, [activeSpaceId]);
 
   // Toggle multi-select items
   const toggleItem = (list: string[], item: string, setter: (val: string[]) => void) => {
@@ -336,13 +399,7 @@ export const QuestionnairePage: React.FC<QuestionnairePageProps> = ({
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       console.error("Error submitting questionnaire:", err);
-      try {
-        const fallbackList = await studyBuddyApi.getAvailablePartners();
-        setTopMatches(fallbackList.slice(0, 5));
-        setCurrentSection(8);
-      } catch {
-        alert("Failed to analyze matches. Please check network connection and try again.");
-      }
+      setValidationError("We could not calculate your matches right now. Your questionnaire is saved; please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -352,15 +409,16 @@ export const QuestionnairePage: React.FC<QuestionnairePageProps> = ({
     if (!space) return;
     setConnectingPartnerId(partner.id);
     try {
-      await studyBuddyApi.updateStudySpace(space.id, {
-        partner_id: partner.id,
-        status: "active",
-        upcoming_sessions: 1,
+      await studyBuddyApi.sendPartnerRequest({
+        receiver_id: partner.id,
+        study_space_id: space.id,
+        compatibility_score: partner.compatibility,
       });
-      onPartnerConnected(space.id, partner);
+      onPartnerRequestSent(space.id, partner);
     } catch (err) {
-      console.error("Error connecting partner:", err);
-      onPartnerConnected(space.id, partner);
+      console.error("Error sending partner request:", err);
+      const message = err instanceof Error ? err.message : "Could not send partner request. Please try again.";
+      setValidationError(message);
     } finally {
       setConnectingPartnerId(null);
     }
@@ -1283,7 +1341,12 @@ export const QuestionnairePage: React.FC<QuestionnairePageProps> = ({
                 </div>
 
                 <div className={styles.matchesList}>
-                  {topMatches.map((partner, index) => {
+                  {topMatches.length === 0 ? (
+                    <div className={styles.noMatches}>
+                      <h4>No matches for this subject and topic yet</h4>
+                      <p>We only recommend students who selected both the same subject and an overlapping topic. Retake the survey to adjust your choices.</p>
+                    </div>
+                  ) : topMatches.map((partner, index) => {
                     const isConnecting = connectingPartnerId === partner.id;
                     const initials = partner.name
                       ? partner.name
@@ -1349,7 +1412,7 @@ export const QuestionnairePage: React.FC<QuestionnairePageProps> = ({
                           onClick={() => handleConnect(partner)}
                           disabled={isConnecting}
                         >
-                          {isConnecting ? "Connecting Space..." : "Connect as Study Partner 🚀"}
+                          {isConnecting ? "Sending request..." : "Send Partner Request"}
                         </button>
                       </div>
                     );

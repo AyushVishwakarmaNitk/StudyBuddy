@@ -3,7 +3,7 @@
  * Handles base URL configuration, headers, JWT tokens, and automated authentication error handling.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 const TOKEN_KEY_ACCESS = "sb_access_token";
 const TOKEN_KEY_REFRESH = "sb_refresh_token";
@@ -42,11 +42,18 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
   const token = getAccessToken();
+  const isPublicAuthEndpoint = [
+    "/auth/login/",
+    "/auth/register/",
+    "/auth/google/",
+    "/auth/password-reset/",
+    "/auth/password-reset/confirm/",
+  ].some((publicEndpoint) => endpoint.startsWith(publicEndpoint));
 
   const headers = new Headers(options.headers || {});
   headers.set("Content-Type", "application/json");
 
-  if (token && !headers.has("Authorization")) {
+  if (token && !isPublicAuthEndpoint && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
@@ -63,7 +70,7 @@ export async function apiFetch<T>(
   }
 
   // Handle Token Expiration (401 Unauthorized) with Refresh Attempt
-  if (response.status === 401 && getRefreshToken() && !endpoint.includes("/auth/")) {
+  if (response.status === 401 && getRefreshToken() && !isPublicAuthEndpoint && !endpoint.includes("/auth/token/refresh/")) {
     const refreshed = await attemptTokenRefresh();
     if (refreshed) {
       headers.set("Authorization", `Bearer ${getAccessToken()}`);

@@ -93,6 +93,24 @@ export const authApi = {
     return data;
   },
 
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>("/auth/password-reset/", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  async confirmPasswordReset(payload: {
+    uid: string;
+    token: string;
+    new_password: string;
+  }): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>("/auth/password-reset/confirm/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
   /**
    * Register a new student account and persist JWT tokens
    */

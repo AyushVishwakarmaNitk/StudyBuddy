@@ -7,6 +7,7 @@ interface StudySpaceCardProps {
   onOpen: (space: StudySpace) => void;
   onFindPartner: (space: StudySpace) => void;
   onDelete?: (space: StudySpace) => void;
+  onCancelRequest?: (requestId: string, space: StudySpace) => void;
 }
 
 export const StudySpaceCard: React.FC<StudySpaceCardProps> = ({
@@ -14,15 +15,17 @@ export const StudySpaceCard: React.FC<StudySpaceCardProps> = ({
   onOpen,
   onFindPartner,
   onDelete,
+  onCancelRequest,
 }) => {
-  const hasPartner = space.partner !== undefined;
+  const hasPartner = space.partner !== undefined && space.status === "active";
+  const isPending = space.status === "pending_request" && space.pendingRequest;
 
   return (
-    <div className={styles.spaceCard}>
+    <div className={`${styles.spaceCard} ${isPending ? styles.spaceCardPending : ""}`}>
       <div className={styles.spaceCardTop}>
         <div className={styles.cardHeaderRow}>
           <span className={styles.spaceSubjectBadge}>{space.subject}</span>
-          {!hasPartner && onDelete && (
+          {!hasPartner && !isPending && onDelete && (
             <button
               type="button"
               className={styles.deleteGoalBtn}
@@ -52,6 +55,18 @@ export const StudySpaceCard: React.FC<StudySpaceCardProps> = ({
                   : `${space.upcomingSessions} upcoming session`}
               </span>
             </>
+          ) : isPending ? (
+            <div className={styles.pendingRequestInfo}>
+              <span className={styles.pendingBadge}>⏳ Pending Request</span>
+              <span className={styles.pendingTo}>
+                to <strong>{space.pendingRequest!.receiver_name}</strong>
+                {space.pendingRequest!.compatibility_score > 0 && (
+                  <span className={styles.pendingScore}>
+                    {" "}· {space.pendingRequest!.compatibility_score}% match
+                  </span>
+                )}
+              </span>
+            </div>
           ) : (
             <span className={styles.partnerNeededBadge}>Partner needed</span>
           )}
@@ -86,6 +101,22 @@ export const StudySpaceCard: React.FC<StudySpaceCardProps> = ({
           >
             Open study space →
           </button>
+        ) : isPending ? (
+          <div className={styles.pendingActions}>
+            <div className={styles.awaitingText}>⏳ Awaiting response from partner…</div>
+            {onCancelRequest && space.pendingRequest && (
+              <button
+                type="button"
+                className={styles.cancelRequestBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCancelRequest(space.pendingRequest!.id, space);
+                }}
+              >
+                Cancel Request
+              </button>
+            )}
+          </div>
         ) : (
           <button
             type="button"

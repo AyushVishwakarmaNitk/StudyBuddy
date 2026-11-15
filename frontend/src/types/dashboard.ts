@@ -13,6 +13,125 @@ export interface StudyPartner {
   collaborationStyle?: string;
 }
 
+export interface PendingPartnerRequest {
+  id: string;
+  receiver_id: string;
+  receiver_name: string;
+  compatibility_score: number;
+  created_at: string;
+}
+
+export interface IncomingPartnerRequest {
+  id: string;
+  sender: StudyPartner;
+  receiver: StudyPartner;
+  study_space: string;
+  study_space_id: string;
+  study_space_title: string;
+  study_space_subject: string;
+  study_space_goal: string;
+  compatibility_score: number;
+  status: "pending" | "accepted" | "declined" | "cancelled";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudentNotification {
+  id: number;
+  kind: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+  partner_request: number | null;
+}
+
+export interface WorkspaceTaskCompletion {
+  userId: number;
+  userName: string;
+  completionNote: string;
+  completedAt: string;
+}
+
+export interface WorkspaceTask {
+  id: number;
+  title: string;
+  description: string;
+  deadline: string;
+  isDaily: boolean;
+  assignmentScope: "self" | "partner" | "both";
+  creatorName: string;
+  createdAt: string;
+  isCompletedByMe: boolean;
+  myCompletionNote: string;
+  completedBy: WorkspaceTaskCompletion[];
+}
+
+export interface SpaceProgress {
+  completed: number;
+  total: number;
+  percent: number;
+}
+
+export interface SpaceStreak {
+  current: number;
+  longest: number;
+  lastCompletedDate: string | null;
+  badges: { id: string; name: string; daysRequired: number; unlocked: boolean }[];
+}
+
+export interface StudySpaceMessage {
+  id: number;
+  senderId: number;
+  senderName: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface StudyBet {
+  id: number;
+  description: string;
+  reward: string;
+  deadline: string | null;
+  status: "open" | "accepted" | "resolved" | "cancelled";
+  taskId: number | null;
+  taskTitle: string;
+  creatorId: number;
+  creatorName: string;
+  acceptedById: number | null;
+  acceptedByName: string | null;
+  winnerId: number | null;
+  winnerName: string | null;
+  createdAt: string;
+}
+
+export interface StudyRoom {
+  id: number;
+  status: "active" | "ended";
+  initiatorId: number;
+  initiatorName: string;
+  createdAt: string;
+  endedAt: string | null;
+}
+
+export interface WorkspaceData {
+  space: StudySpace;
+  participants: { self: StudyPartner; partner: StudyPartner | null };
+  tasks: WorkspaceTask[];
+  progress: { self: SpaceProgress; partner: SpaceProgress };
+  streaks: { self: SpaceStreak; partner: SpaceStreak };
+  messages: StudySpaceMessage[];
+  bets: StudyBet[];
+  activeRoom: StudyRoom | null;
+}
+
+export interface StudyRoomSignal {
+  id: number;
+  kind: "offer" | "answer" | "ice_candidate" | "end";
+  payload: Record<string, unknown>;
+  senderId: number;
+}
+
 export interface StudySpace {
   id: string;
   title: string;
@@ -22,10 +141,11 @@ export interface StudySpace {
   duration: string;
   learningStyle: string;
   partner?: StudyPartner;
+  pendingRequest?: PendingPartnerRequest | null;
   sessionsCompleted: number;
   upcomingSessions: number;
   progressPercent: number; // 0-100
-  status: "active" | "partner_needed";
+  status: "active" | "partner_needed" | "pending_request";
 }
 
 export type EducationLevel = "class_10" | "class_12" | "ug" | "pg";
